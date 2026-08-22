@@ -8,11 +8,12 @@ import { Card, StatusBadge } from "../components/ui";
 import { LIVE_READINGS, statusFor, SUGGESTIONS } from "../data/mockData";
 
 const CONDITION_CARDS = [
-  { icon: Thermometer, label: "Temperature", value: LIVE_READINGS.temperature, unit: "°C",  status: statusFor("temperature", LIVE_READINGS.temperature) },
-  { icon: Droplets,   label: "Humidity",    value: LIVE_READINGS.humidity,    unit: "%",   status: statusFor("humidity",    LIVE_READINGS.humidity)    },
-  { icon: FlaskConical, label: "Nitrogen",  value: LIVE_READINGS.nitrogen.value,   unit: "ppm", status: LIVE_READINGS.nitrogen.status    },
-  { icon: Atom,       label: "Phosphorus",  value: LIVE_READINGS.phosphorus.value, unit: "ppm", status: LIVE_READINGS.phosphorus.status  },
-  { icon: Leaf,       label: "Potassium",   value: LIVE_READINGS.potassium.value,  unit: "ppm", status: LIVE_READINGS.potassium.status   },
+
+  { icon: FlaskConical, label: "Nitrogen", value: LIVE_READINGS.nitrogen.value, unit: "ppm", status: LIVE_READINGS.nitrogen.status },
+  { icon: Atom, label: "Phosphorus", value: LIVE_READINGS.phosphorus.value, unit: "ppm", status: LIVE_READINGS.phosphorus.status },
+  { icon: Leaf, label: "Potassium", value: LIVE_READINGS.potassium.value, unit: "ppm", status: LIVE_READINGS.potassium.status },
+  { icon: Thermometer, label: "Temperature", value: LIVE_READINGS.temperature, unit: "°C", status: statusFor("temperature", LIVE_READINGS.temperature) },
+  { icon: Droplets, label: "Humidity", value: LIVE_READINGS.humidity, unit: "%", status: statusFor("humidity", LIVE_READINGS.humidity) },
 ];
 
 export default function Plant() {
