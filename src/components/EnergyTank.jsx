@@ -96,11 +96,11 @@ export default function EnergyTank({
   const displayLabel = cycleMode ? modeLabel : label;
 
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* Fixed height container for header text to ensure perfect vertical alignment */}
-      <div className="h-6 flex items-center justify-center text-center">
+    <div className="flex flex-col items-center gap-3 w-44 sm:w-48 shrink-0">
+      {/* Fixed height and width container for header text to prevent any jumping or layout shift */}
+      <div className="h-6 flex items-center justify-center text-center w-full">
         <span
-          className={`text-sm font-semibold transition-colors duration-300 ${
+          className={`text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
             cycleMode ? c.text : "text-gray-700"
           }`}
         >
@@ -108,11 +108,11 @@ export default function EnergyTank({
         </span>
       </div>
 
-      {/* Tank Container - identical dimensions */}
-      <div className="w-14 h-52 bg-gray-100 rounded-full relative overflow-hidden border border-gray-200 shadow-inner">
+      {/* Tank Container - identical fixed dimensions across all states */}
+      <div className="w-14 h-52 bg-gray-100 rounded-full relative overflow-hidden border border-gray-200 shadow-inner shrink-0">
         <div
-          className={`absolute bottom-0 left-0 right-0 ${c.bar} shadow-lg ${c.glow} transition-none rounded-full`}
-          style={{ height: `${fill}%` }}
+          className={`absolute bottom-0 left-0 right-0 w-full ${c.bar} shadow-lg ${c.glow} transition-none`}
+          style={{ height: `${Math.min(100, Math.max(0, fill))}%` }}
         />
 
         {/* Bubble overlays */}
@@ -135,8 +135,8 @@ export default function EnergyTank({
       </div>
 
       {/* Percentage value with fixed height & consistent typography */}
-      <div className="h-8 flex items-center justify-center">
-        <span className="text-2xl font-bold text-gray-900 min-w-[4rem] text-center">
+      <div className="h-8 flex items-center justify-center w-full">
+        <span className="text-2xl font-bold text-gray-900 w-20 text-center font-mono">
           {Math.round(fill)}%
         </span>
       </div>

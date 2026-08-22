@@ -17,7 +17,7 @@ export default function Power() {
               <tr className="border-b border-gray-100">
                 <th className="text-left py-2 pr-4 text-gray-500 font-medium">Metric</th>
                 <th className="text-left py-2 pr-4 text-gray-700 font-semibold">Normal Mode</th>
-                <th className="text-left py-2 text-gray-700 font-semibold">Deep Sleep Mode</th>
+                <th className="text-left py-2 pr-4 text-gray-700 font-semibold">Deep Sleep Mode</th>
               </tr>
             </thead>
             <tbody>
