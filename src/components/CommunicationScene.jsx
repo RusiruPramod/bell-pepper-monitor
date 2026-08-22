@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export default function CommunicationScene() {
+export default function CommunicationScene({ height = "295px" }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -23,8 +23,8 @@ export default function CommunicationScene() {
       0.1,
       100
     );
-    camera.position.set(0, 1.5, 6);
-    camera.lookAt(0, 0, 0);
+    camera.position.set(0, 1.35, 5.5);
+    camera.lookAt(0, 0.2, 0);
 
     // ── Lighting ──────────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
@@ -179,5 +179,5 @@ export default function CommunicationScene() {
     };
   }, []);
 
-  return <div ref={mountRef} style={{ width: "100%", height: "320px" }} />;
+  return <div ref={mountRef} style={{ width: "100%", height }} />;
 }
