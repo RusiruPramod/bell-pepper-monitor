@@ -6,7 +6,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   const login = ({ email, name }) => {
-    setUser({ name: name || email.split('@')[0], email });
+    setUser({ name: name || "User", email });
   };
 
   const logout = () => {
