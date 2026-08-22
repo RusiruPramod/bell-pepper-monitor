@@ -266,7 +266,7 @@ export default function Dashboard() {
 
       {/* ── Current Conditions ── */}
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Current Conditions</h2>
+        <h2 className="text-base font-bold text-gray-800 mb-3">Current Conditions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {CONDITION_CARDS.map((c) => (
             <ConditionCard key={c.label} {...c} />
@@ -292,7 +292,7 @@ export default function Dashboard() {
             <span className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
               <FlaskConical size={15} className="text-amber-600" />
             </span>
-            <span className="text-sm font-semibold text-gray-700">NPK Soil Sensor</span>
+            <span className="text-base font-bold text-gray-800">NPK Soil Sensor</span>
             <span className="ml-auto text-xs px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 font-semibold border border-green-100">
               Optimal
             </span>
@@ -304,15 +304,15 @@ export default function Dashboard() {
               { label: "Potassium", value: LIVE_READINGS.potassium.value, unit: "ppm", color: "text-amber-600" },
             ].map(({ label, value, unit, color }) => (
               <div key={label} className="flex flex-col">
-                <span className="text-xs text-gray-400 mb-0.5">{label}</span>
-                <span className={`text-xl font-bold ${color}`}>
+                <span className="text-sm font-medium text-gray-600 mb-0.5">{label}</span>
+                <span className={`text-2xl font-bold ${color}`}>
                   {value}
-                  <span className="text-xs font-normal text-gray-400 ml-1">{unit}</span>
+                  <span className="text-sm font-medium text-gray-500 ml-1">{unit}</span>
                 </span>
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-3">
+          <p className="text-sm text-gray-600 mt-3">
             Soil nutrient levels are within optimal range for bell pepper growth.
           </p>
         </div>
@@ -324,9 +324,9 @@ export default function Dashboard() {
         <Card className="lg:col-span-2 p-6 flex flex-col justify-between relative overflow-hidden">
           {/* Card Header with Status and AI Live Indicator */}
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
-                <Lightbulb size={16} />
+            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
+                <Lightbulb size={18} />
               </div>
               <span>What Your Plant Need - AI suggestions</span>
             </h2>
@@ -372,10 +372,10 @@ export default function Dashboard() {
 
           {/* Bottom Card Footer: Status on left & AI Check Button on bottom right */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-4 mt-5 border-t border-gray-100">
-            <div className="flex items-center gap-2 text-xs text-gray-400">
-              <span className="font-medium text-gray-600 flex items-center gap-1.5">
-                <Bot size={14} className="text-emerald-600" />
-                Agronomy  Engine
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="font-semibold text-gray-700 flex items-center gap-1.5">
+                <Bot size={15} className="text-emerald-600" />
+                Agronomy Engine
               </span>
               <span>·</span>
               <span>Updated: {lastAnalyzed}</span>
@@ -412,19 +412,19 @@ export default function Dashboard() {
         <div className="space-y-4">
           {/* System Connection */}
           <Card className="p-5">
-            <h2 className="text-sm font-semibold text-gray-700 mb-3">System Connection</h2>
-            <div className="space-y-2 text-sm">
+            <h2 className="text-base font-bold text-gray-800 mb-3">System Connection</h2>
+            <div className="space-y-2.5 text-sm">
               <div className="flex justify-between items-center">
-                <span className="text-gray-500">Status</span>
+                <span className="text-gray-600 font-medium">Status</span>
                 <StatusBadge status="Connected" />
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Signal</span>
-                <span className="text-gray-800 font-medium">Good</span>
+                <span className="text-gray-600 font-medium">Signal</span>
+                <span className="text-gray-800 font-semibold">Good</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Last update</span>
-                <span className="text-gray-800 font-medium">10s ago</span>
+                <span className="text-gray-600 font-medium">Last update</span>
+                <span className="text-gray-800 font-semibold">10s ago</span>
               </div>
             </div>
             <Link
@@ -438,12 +438,12 @@ export default function Dashboard() {
           {/* Energy */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-semibold text-gray-700">Energy</h2>
+              <h2 className="text-base font-bold text-gray-800">Energy</h2>
               <Zap size={16} className="text-green-600" />
             </div>
-            <p className="text-xs text-gray-400 mb-3">Power Saving Active</p>
-            <p className="text-3xl font-semibold text-gray-900 mb-1">30%</p>
-            <p className="text-xs text-gray-400 leading-relaxed">
+            <p className="text-sm font-medium text-gray-600 mb-3">Power Saving Active</p>
+            <p className="text-4xl font-bold text-gray-900 mb-1">30%</p>
+            <p className="text-sm text-gray-600 leading-relaxed">
               Efficiency reference · measured using INA226 power monitoring.
             </p>
             <Link

@@ -12,7 +12,7 @@ const RANGES = ["Today", "7 Days", "30 Days"];
 function ChartCard({ title, children }) {
   return (
     <Card className="p-6">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">{title}</h2>
+      <h2 className="text-base font-bold text-gray-800 mb-4">{title}</h2>
       {children}
     </Card>
   );

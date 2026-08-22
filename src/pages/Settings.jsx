@@ -45,7 +45,7 @@ export default function Settings() {
 
       {/* Account */}
       <Card className="p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Account</h2>
+        <h2 className="text-base font-bold text-gray-800 mb-4">Account</h2>
         <div className="space-y-3 text-sm mb-5">
           <InfoRow label="Profile name" value={user?.name ?? "—"} />
           <InfoRow label="Email"        value={user?.email ?? "—"} />
@@ -63,10 +63,10 @@ export default function Settings() {
       {/* AI Suggestions */}
       <Card className="p-6">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-sm font-semibold text-gray-700">AI Suggestions</h2>
+          <h2 className="text-base font-bold text-gray-800">AI Suggestions</h2>
           <StatusBadge status={aiConfigured ? "AI Ready" : "AI Not Configured"} />
         </div>
-        <p className="text-xs text-gray-400 mb-4 leading-relaxed">
+        <p className="text-sm text-gray-600 mb-4 leading-relaxed">
           Add an API key to unlock AI-powered plant health suggestions. Your key is stored locally
           and never sent to our servers.
         </p>
@@ -138,7 +138,7 @@ export default function Settings() {
 
       {/* Device */}
       <Card className="p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Device</h2>
+        <h2 className="text-base font-bold text-gray-800 mb-4">Device</h2>
         <div className="space-y-3 text-sm">
           <InfoRow label="Device Name"        value="ESP32-SN-01" />
           <div className="flex justify-between items-center">
@@ -151,7 +151,7 @@ export default function Settings() {
 
       {/* System */}
       <Card className="p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">System</h2>
+        <h2 className="text-base font-bold text-gray-800 mb-4">System</h2>
         <div className="space-y-3 text-sm">
           <InfoRow label="Application Version" value="1.0.0" />
           <InfoRow label="Data Retention"       value="30 days" />
@@ -168,8 +168,8 @@ export default function Settings() {
 function InfoRow({ label, value }) {
   return (
     <div className="flex justify-between">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-gray-800">{value}</span>
+      <span className="text-gray-600 font-medium">{label}</span>
+      <span className="font-semibold text-gray-800">{value}</span>
     </div>
   );
 }

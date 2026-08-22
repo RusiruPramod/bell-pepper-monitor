@@ -32,7 +32,7 @@ function NavItems({ onClose }) {
           end={end}
           onClick={onClose}
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-[15px] font-semibold transition-colors ${
               isActive
                 ? "bg-green-50 text-green-700"
                 : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -67,7 +67,7 @@ export default function Sidebar({ open, onClose }) {
           <div className="w-8 h-8 rounded-xl bg-green-600 flex items-center justify-center">
             <Sprout size={16} className="text-white" />
           </div>
-          <span className="text-sm font-semibold text-gray-900">Bell Pepper Monitor</span>
+          <span className="text-base font-bold text-gray-900">Bell Pepper Monitor</span>
         </div>
         {onClose && (
           <button onClick={onClose} className="lg:hidden p-1 text-gray-400 hover:text-gray-600">
@@ -85,7 +85,7 @@ export default function Sidebar({ open, onClose }) {
             {initial}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate">{user?.name ?? "User"}</p>
+            <p className="text-sm font-bold text-gray-900 truncate">{user?.name ?? "User"}</p>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
               <span className="text-xs text-gray-400">Online</span>

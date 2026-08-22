@@ -21,10 +21,13 @@
 body {
   color: var(--color-gray-900, #111827);
   background-color: var(--color-gray-50, #f9fafb);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
     Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Slightly larger base font for better readability */
+  font-size: 15px;
+  line-height: 1.6;
 }
 
 /* Smooth scroll for the whole page */
@@ -45,3 +48,16 @@ html {
   border-radius: 9999px;
 }
 
+/* ─── Global text contrast improvements ─── */
+/* Darken all muted gray text so it's clearly visible */
+.text-gray-400 {
+  color: #6b7280 !important; /* was near-invisible light gray, now gray-500 equivalent */
+}
+.text-gray-500 {
+  color: #4b5563 !important; /* was gray-500, now gray-600 equivalent */
+}
+
+/* ─── Sidebar & nav: slightly larger nav labels ─── */
+nav a {
+  font-size: 0.9375rem; /* 15px */
+}

@@ -44,7 +44,7 @@ export default function Plant() {
         <div className="lg:col-span-2 space-y-6">
           {/* Current Conditions mini grid */}
           <Card className="p-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Current Conditions</h2>
+            <h2 className="text-base font-bold text-gray-800 mb-4">Current Conditions</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {CONDITION_CARDS.map((c) => (
                 <ConditionCard key={c.label} {...c} />
@@ -54,8 +54,8 @@ export default function Plant() {
 
           {/* Suggestions */}
           <Card className="p-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
-              <Lightbulb size={16} className="text-amber-500" />
+            <h2 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Lightbulb size={18} className="text-amber-500" />
               <span>Plant Suggestions</span>
             </h2>
             <div className="space-y-3">
@@ -73,8 +73,8 @@ export default function Plant() {
 function InfoRow({ label, value }) {
   return (
     <div className="flex justify-between text-sm">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-gray-800">{value}</span>
+      <span className="text-gray-600 font-medium">{label}</span>
+      <span className="font-semibold text-gray-800">{value}</span>
     </div>
   );
 }
