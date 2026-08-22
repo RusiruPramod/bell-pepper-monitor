@@ -37,8 +37,8 @@ export default function Power() {
       <Card className="p-6">
         <h2 className="text-sm font-semibold text-gray-700 mb-6">Live Energy Draw</h2>
         <div className="flex justify-center gap-16">
-          <EnergyTank label="Normal Mode" targetPercent={78} color="green" />
-          <EnergyTank label="Deep Sleep" targetPercent={6} color="blue" />
+          <EnergyTank label="Normal Mode" targetPercent={90} color="high-green" />
+          <EnergyTank label="Deep Sleep" targetPercent={30} color="low-green" />
         </div>
         <p className="text-xs text-gray-400 text-center mt-4">
           Simulated live readings — animating in real time
@@ -65,7 +65,7 @@ export default function Power() {
             <h2 className="text-sm font-semibold text-gray-700">Measured Efficiency</h2>
             <StatusBadge status="Good" />
           </div>
-          <p className="text-4xl font-semibold text-gray-900 mt-3">27.4%</p>
+          <p className="text-4xl font-semibold text-gray-900 mt-3">30%</p>
           <p className="text-xs text-gray-400 mt-2 leading-relaxed">
             Calculated from live INA226 Normal vs Deep Sleep readings.
           </p>

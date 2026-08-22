@@ -43,6 +43,8 @@ export default function EnergyTank({ label, targetPercent, color = "green" }) {
   const colorMap = {
     green: { bar: "bg-green-500", glow: "shadow-green-300" },
     blue:  { bar: "bg-blue-500",  glow: "shadow-blue-300"  },
+    "high-green": { bar: "bg-gradient-to-t from-green-600 via-green-400 to-emerald-300", glow: "shadow-green-400" },
+    "low-green": { bar: "bg-green-400/90", glow: "shadow-green-300" },
   };
   const c = colorMap[color] ?? colorMap.green;
 
