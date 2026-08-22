@@ -100,9 +100,8 @@ export default function EnergyTank({
       {/* Fixed height and width container for header text to prevent any jumping or layout shift */}
       <div className="h-6 flex items-center justify-center text-center w-full">
         <span
-          className={`text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${
-            cycleMode ? c.text : "text-gray-700"
-          }`}
+          className={`text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${cycleMode ? c.text : "text-gray-700"
+            }`}
         >
           {displayLabel}
         </span>
@@ -135,10 +134,10 @@ export default function EnergyTank({
       </div>
 
       {/* Percentage value with smooth curves and modern typography */}
-      <div className="h-9 flex items-center justify-center w-full">
-        <span className="text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums flex items-baseline justify-center select-none">
+      <div className="h-7 flex items-center justify-center w-full">
+        <span className="text-xl font-bold text-gray-800 tracking-tight tabular-nums flex items-baseline justify-center select-none">
           {Math.round(fill)}
-          <span className="text-lg font-bold text-gray-400 ml-0.5">%</span>
+          <span className="text-sm font-semibold text-gray-400 ml-0.5">%</span>
         </span>
       </div>
     </div>
