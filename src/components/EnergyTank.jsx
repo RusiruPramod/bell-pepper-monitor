@@ -134,10 +134,11 @@ export default function EnergyTank({
         </div>
       </div>
 
-      {/* Percentage value with fixed height & consistent typography */}
-      <div className="h-8 flex items-center justify-center w-full">
-        <span className="text-2xl font-bold text-gray-900 w-20 text-center font-mono">
-          {Math.round(fill)}%
+      {/* Percentage value with smooth curves and modern typography */}
+      <div className="h-9 flex items-center justify-center w-full">
+        <span className="text-3xl font-extrabold text-gray-900 tracking-tight tabular-nums flex items-baseline justify-center select-none">
+          {Math.round(fill)}
+          <span className="text-lg font-bold text-gray-400 ml-0.5">%</span>
         </span>
       </div>
     </div>
