@@ -1,5 +1,5 @@
 import {
-  Thermometer, Droplets, FlaskConical, Atom, Leaf,
+  Thermometer, Droplets, FlaskConical, Atom, Leaf, Lightbulb,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import ConditionCard from "../components/ConditionCard";
@@ -53,7 +53,10 @@ export default function Plant() {
 
           {/* Suggestions */}
           <Card className="p-6">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">💡 Plant Suggestions</h2>
+            <h2 className="text-sm font-semibold text-gray-700 mb-4 flex items-center gap-2">
+              <Lightbulb size={16} className="text-amber-500" />
+              <span>Plant Suggestions</span>
+            </h2>
             <div className="space-y-3">
               {SUGGESTIONS.map((s) => (
                 <SuggestionCard key={s.id} {...s} />
