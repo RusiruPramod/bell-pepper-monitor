@@ -35,13 +35,13 @@ export default function Power() {
 
       {/* Live Energy Draw */}
       <Card className="p-6">
-        <h2 className="text-sm font-semibold text-gray-700 mb-6">Live Energy Draw</h2>
-        <div className="flex justify-center gap-16">
-          <EnergyTank label="Normal Mode" targetPercent={90} color="high-green" />
-          <EnergyTank label="Deep Sleep" targetPercent={30} color="low-green" />
+        <h2 className="text-sm font-semibold text-gray-700 mb-6">Live Energy Draw Cycle</h2>
+        <div className="flex justify-center items-start gap-12 sm:gap-20">
+          <EnergyTank label="Normal Usage" targetPercent={100} color="high-green" />
+          <EnergyTank cycleMode={true} />
         </div>
-        <p className="text-xs text-gray-400 text-center mt-4">
-          Simulated live readings — animating in real time
+        <p className="text-xs text-gray-400 text-center mt-6">
+          8s cycle: Ramping up to 100%, then transitioning to a fixed 30% deep sleep efficiency
         </p>
       </Card>
 
