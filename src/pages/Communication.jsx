@@ -34,11 +34,11 @@ export default function Communication() {
       {/* Split Layout: 3D Link (Left) & Windows-style Details Pane (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
         {/* ── Left Column: 3D Wireless Link & Status Overview ── */}
-        <div className="lg:col-span-7 flex flex-col justify-between gap-4">
+        <div className="lg:col-span-7 flex flex-col justify-between gap-3">
           {/* Main Three.js card */}
-          <Card className="p-5.5 flex-1 flex flex-col justify-between">
+          <Card className="p-4 flex-1 flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2.5">
                   <div className="w-7 h-7 rounded-lg bg-green-50 flex items-center justify-center text-green-600">
                     <Radio size={16} />
@@ -58,7 +58,7 @@ export default function Communication() {
               </div>
 
               {/* Node Endpoints pill bar */}
-              <div className="flex items-center justify-between px-3.5 py-2 bg-gray-50/80 rounded-xl border border-gray-100 mb-3 text-xs">
+              <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50/80 rounded-xl border border-gray-100 mb-2 text-xs">
                 <div className="flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
                   <span className="font-medium text-gray-700 text-xs">Node:</span>
@@ -78,17 +78,17 @@ export default function Communication() {
 
               {/* 3D Scene View */}
               <div className="relative rounded-2xl overflow-hidden bg-gradient-to-b from-gray-50/60 to-gray-100/40 border border-gray-100">
-                <CommunicationScene height="295px" />
+                <CommunicationScene height="310px" />
               </div>
             </div>
 
-            <p className="text-[11px] text-gray-400 text-center mt-2.5 leading-snug">
+            <p className="text-[11px] text-gray-400 text-center mt-2 leading-snug">
               The sensor node (left) collects readings and transmits wirelessly to receiver (right) via LoRa.
             </p>
           </Card>
 
           {/* Status mini cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <InfoCard
               icon={Signal}
               iconBg="bg-green-50"
@@ -118,9 +118,9 @@ export default function Communication() {
 
         {/* ── Right Column: Interactive Tab-based Technical Details ── */}
         <div className="lg:col-span-5 flex flex-col" id="technical-details">
-          <Card className="p-5.5 flex-1 flex flex-col justify-between divide-y divide-gray-100 shadow-sm">
+          <Card className="p-4 flex-1 flex flex-col justify-between divide-y divide-gray-100 shadow-sm">
             {/* Header */}
-            <div className="pb-3.5 flex items-center justify-between">
+            <div className="pb-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-700">
                   <SlidersHorizontal size={16} />
@@ -137,10 +137,10 @@ export default function Communication() {
             </div>
 
             {/* Tab Selector & Dynamic Content Section */}
-            <div className="py-3.5 flex-1 flex flex-col justify-between">
+            <div className="py-2.5 flex-1 flex flex-col justify-between">
               <div>
                 {/* Tab Navigation Pill Bar */}
-                <div className="flex p-1 bg-gray-100/90 rounded-2xl gap-1 border border-gray-200/60 shadow-2xs mb-3">
+                <div className="flex p-1 bg-gray-100/90 rounded-2xl gap-1 border border-gray-200/60 shadow-2xs mb-2">
                   {TABS.map((tab) => {
                     const Icon = tab.icon;
                     const isActive = activeTab === tab.id;
@@ -149,11 +149,10 @@ export default function Communication() {
                         key={tab.id}
                         type="button"
                         onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 text-[11px] sm:text-xs font-medium rounded-xl transition-all duration-200 cursor-pointer select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none ${
-                          isActive
-                            ? "bg-white text-gray-900 shadow-xs border border-gray-200/80 font-semibold"
-                            : "text-gray-500 hover:text-gray-800 hover:bg-gray-200/40 border border-transparent"
-                        }`}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 text-[11px] sm:text-xs font-medium rounded-xl transition-all duration-200 cursor-pointer select-none outline-none focus:outline-none focus:ring-0 focus-visible:outline-none ${isActive
+                          ? "bg-white text-gray-900 shadow-xs border border-gray-200/80 font-semibold"
+                          : "text-gray-500 hover:text-gray-800 hover:bg-gray-200/40 border border-transparent"
+                          }`}
                         title={tab.label}
                       >
                         <Icon
@@ -168,8 +167,8 @@ export default function Communication() {
 
                 {/* Tab 1: RF & Signal Parameters */}
                 {activeTab === "rf" && (
-                  <div className="space-y-1 transition-all duration-200">
-                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                  <div className="space-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[10px]">
                         <Radio size={12} className="text-gray-400" />
                         <span>RF & Signal Parameters</span>
@@ -196,8 +195,17 @@ export default function Communication() {
                         </span>
                       }
                     />
+                    <TechRow
+                      label="ADR Link-Quality Control"
+                      value="Active"
+                      badge={
+                        <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/50">
+                          Auto SF/Tx
+                        </span>
+                      }
+                    />
                     <TechRow label="Frequency Band" value="915.0 MHz (US915)" />
-                    <TechRow label="Spreading Factor" value="SF7" />
+                    <TechRow label="Spreading Factor" value="SF7 (Dynamic)" />
                     <TechRow label="Signal Bandwidth" value="125 kHz" />
                     <TechRow label="Tx Power Output" value="+14 dBm (25 mW)" />
                     <TechRow label="Coding Rate" value="4/5" />
@@ -208,21 +216,21 @@ export default function Communication() {
 
                 {/* Tab 2: Device & Identification */}
                 {activeTab === "device" && (
-                  <div className="space-y-1 transition-all duration-200">
-                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                  <div className="space-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[10px]">
                         <Cpu size={12} className="text-gray-400" />
                         <span>Device & Identification</span>
                       </div>
                       <span className="text-[10px] font-mono text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded-full border border-blue-200/50">
-                        SX1276 · ESP32
+                        RA-02 · ESP32
                       </span>
                     </div>
                     <TechRow label="Transmitter Node ID" value="ESP32-SN-01" highlight />
                     <TechRow label="Receiver Gateway ID" value="ESP32-GW-01" />
-                    <TechRow label="Radio Transceiver" value="Semtech SX1276" />
+                    <TechRow label="LoRa Module / Radio" value="Ai-Thinker RA-02 (SX1278)" />
                     <TechRow label="Microcontroller" value="ESP32-WROOM-32D (240MHz)" />
-                    <TechRow label="Network Protocol" value="LoRa Point-to-Point" />
+                    <TechRow label="Network Protocol" value="LoRa Point-to-Point (ADR)" />
                     <TechRow label="Hardware DevEUI / MAC" value="70:B3:D5:7E:D0:05:4A:11" />
                     <TechRow label="Firmware Version" value="v1.3.2-prod" />
                     <TechRow label="Power Source" value="3.7V LiPo + Solar Harvester" />
@@ -231,34 +239,45 @@ export default function Communication() {
 
                 {/* Tab 3: Transmission Diagnostics */}
                 {activeTab === "diagnostics" && (
-                  <div className="space-y-1 transition-all duration-200">
-                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1.5">
+                  <div className="space-y-0.5 transition-all duration-200">
+                    <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
                       <div className="flex items-center gap-1.5 font-semibold uppercase tracking-wider text-[10px]">
                         <Clock size={12} className="text-gray-400" />
                         <span>Transmission Diagnostics</span>
                       </div>
                       <span className="text-[10px] font-mono text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full border border-green-200/50">
-                        0% Loss
+                        99.8% PDR
                       </span>
                     </div>
+                    <TechRow
+                      label="Packet Delivery Ratio (PDR)"
+                      value="99.8%"
+                      highlight
+                      badge={
+                        <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200/50">
+                          1,425 / 1,428
+                        </span>
+                      }
+                    />
+                    <TechRow label="Total Packets Sent" value="1,428 pkts" />
+                    <TechRow label="Total Packets Received" value="1,425 pkts" />
+                    <TechRow
+                      label="Packet Loss Rate"
+                      value="0.21%"
+                      badge={
+                        <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200/50">
+                          3 dropped
+                        </span>
+                      }
+                    />
                     <TechRow
                       label="Last Handshake"
                       value="10 seconds ago"
                       badge={<span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>}
                     />
+                    <TechRow label="Transmission Time (Airtime)" value="41.2 ms" />
                     <TechRow label="Uplink Interval" value="Every 15 min" />
-                    <TechRow label="Total Packets Sent" value="1,428 pkts" />
-                    <TechRow
-                      label="Packet Loss Rate"
-                      value="0.00%"
-                      badge={
-                        <span className="text-[10px] font-semibold text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-200/50">
-                          0 dropped
-                        </span>
-                      }
-                    />
                     <TechRow label="Payload Data Length" value="24 Bytes" />
-                    <TechRow label="Airtime per Packet" value="41.2 ms" />
                     <TechRow
                       label="Link Reliability"
                       value="99.98%"
@@ -275,7 +294,7 @@ export default function Communication() {
             </div>
 
             {/* Footer / Security Info */}
-            <div className="pt-3.5 flex items-center justify-between text-xs text-gray-500">
+            <div className="pt-2.5 flex items-center justify-between text-xs text-gray-500">
               <div className="flex items-center gap-1.5 text-gray-600">
                 <ShieldCheck size={14} className="text-green-600" />
                 <span className="font-medium text-xs">AES-128 Encryption</span>
@@ -294,14 +313,13 @@ export default function Communication() {
 
 function InfoCard({ icon: Icon, iconBg, iconColor, label, badge, detail }) {
   return (
-    <Card className="p-4 flex flex-col justify-between">
-      <div className="flex items-center justify-between mb-2">
+    <Card className="p-3">
+      <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
           {Icon && (
             <div
-              className={`w-7 h-7 rounded-lg ${
-                iconBg ?? "bg-gray-50"
-              } flex items-center justify-center ${iconColor ?? "text-gray-600"}`}
+              className={`w-7 h-7 rounded-lg ${iconBg ?? "bg-gray-50"
+                } flex items-center justify-center ${iconColor ?? "text-gray-600"}`}
             >
               <Icon size={14} />
             </div>
@@ -321,15 +339,14 @@ function InfoCard({ icon: Icon, iconBg, iconColor, label, badge, detail }) {
 
 function TechRow({ label, value, badge, highlight }) {
   return (
-    <div className="flex items-center justify-between py-2 text-xs">
+    <div className="flex items-center justify-between py-1.5 text-xs">
       <span className="text-gray-500 text-xs">{label}</span>
       <div className="flex items-center gap-2">
         <span
-          className={`font-mono text-xs ${
-            highlight
-              ? "font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200/60"
-              : "font-medium text-gray-800"
-          }`}
+          className={`font-mono text-xs ${highlight
+            ? "font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded border border-green-200/60"
+            : "font-medium text-gray-800"
+            }`}
         >
           {value}
         </span>

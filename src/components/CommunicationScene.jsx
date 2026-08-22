@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export default function CommunicationScene({ height = "295px" }) {
+export default function CommunicationScene({ height = "255px" }) {
   const mountRef = useRef(null);
 
   useEffect(() => {
@@ -18,13 +18,13 @@ export default function CommunicationScene({ height = "295px" }) {
     // ── Scene & Camera ────────────────────────────────────────────────────────
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(
-      45,
+      55,
       container.clientWidth / container.clientHeight,
       0.1,
       100
     );
-    camera.position.set(0, 1.35, 5.5);
-    camera.lookAt(0, 0.2, 0);
+    camera.position.set(0, 2.0, 5.2);
+    camera.lookAt(0, 0.9, 0);
 
     // ── Lighting ──────────────────────────────────────────────────────────────
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
@@ -88,11 +88,11 @@ export default function CommunicationScene({ height = "295px" }) {
       return group;
     }
 
-    const sensorBoard   = makeBoard(-2.2);
-    const receiverBoard = makeBoard( 2.2);
+    const sensorBoard = makeBoard(-2.2);
+    const receiverBoard = makeBoard(2.2);
 
     // Label them
-    sensorBoard.userData.label   = "Sensor";
+    sensorBoard.userData.label = "Sensor";
     receiverBoard.userData.label = "Receiver";
 
     const boardGroup = new THREE.Group();
@@ -103,9 +103,9 @@ export default function CommunicationScene({ height = "295px" }) {
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(-2.2, 0.5, 0),
       new THREE.Vector3(-1.1, 1.4, 0),
-      new THREE.Vector3(   0, 1.8, 0),
-      new THREE.Vector3( 1.1, 1.4, 0),
-      new THREE.Vector3( 2.2, 0.5, 0),
+      new THREE.Vector3(0, 1.8, 0),
+      new THREE.Vector3(1.1, 1.4, 0),
+      new THREE.Vector3(2.2, 0.5, 0),
     ]);
 
     const linePoints = curve.getPoints(60);
@@ -131,7 +131,7 @@ export default function CommunicationScene({ height = "295px" }) {
 
     // ── Grid floor ────────────────────────────────────────────────────────────
     const grid = new THREE.GridHelper(10, 20, 0xe5e7eb, 0xe5e7eb);
-    grid.position.y = -1.15;
+    grid.position.y = -0.7;
     grid.material.transparent = true;
     grid.material.opacity = 0.4;
     scene.add(grid);
