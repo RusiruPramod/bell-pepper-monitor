@@ -48,17 +48,30 @@ export default function History() {
             key={r}
             id={`history-range-${r.replace(" ", "-").toLowerCase()}`}
             onClick={() => setRange(r)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              range === r
-                ? "bg-green-600 text-white"
-                : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${range === r
+              ? "bg-green-600 text-white"
+              : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
+              }`}
           >
             {r}
           </button>
         ))}
       </div>
-
+      {/* NPK grouped bar chart */}
+      <ChartCard title="NPK Levels (ppm)">
+        <ResponsiveContainer width="100%" height={240}>
+          <BarChart data={data} barGap={2}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <XAxis dataKey="label" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip content={<CustomTooltip />} />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Bar dataKey="nitrogen" name="Nitrogen" fill="#16a34a" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="phosphorus" name="Phosphorus" fill="#65a30d" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="potassium" name="Potassium" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartCard>
       {/* Temperature line chart */}
       <ChartCard title="Temperature (°C)">
         <ResponsiveContainer width="100%" height={220}>
@@ -101,21 +114,7 @@ export default function History() {
         </ResponsiveContainer>
       </ChartCard>
 
-      {/* NPK grouped bar chart */}
-      <ChartCard title="NPK Levels (ppm)">
-        <ResponsiveContainer width="100%" height={240}>
-          <BarChart data={data} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Bar dataKey="nitrogen"   name="Nitrogen"   fill="#16a34a" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="phosphorus" name="Phosphorus" fill="#65a30d" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="potassium"  name="Potassium"  fill="#f59e0b" radius={[4, 4, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+
     </div>
   );
 }
