@@ -11,23 +11,9 @@ import { Card, StatusBadge } from "../components/ui";
 import { LIVE_READINGS, statusFor } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
 import greenhouseImg from "../assets/bell_pepper_greenhouse.jpg";
-import npkImg from "../assets/npk_sensor.jpg";
+import npkImg from "../assets/npk_sensor1.jpeg";
 
 const CONDITION_CARDS = [
-  {
-    icon: Thermometer,
-    label: "Temperature",
-    value: LIVE_READINGS.temperature,
-    unit: "°C",
-    status: statusFor("temperature", LIVE_READINGS.temperature),
-  },
-  {
-    icon: Droplets,
-    label: "Humidity",
-    value: LIVE_READINGS.humidity,
-    unit: "%",
-    status: statusFor("humidity", LIVE_READINGS.humidity),
-  },
   {
     icon: FlaskConical,
     label: "Nitrogen",
@@ -49,6 +35,21 @@ const CONDITION_CARDS = [
     unit: "ppm",
     status: LIVE_READINGS.potassium.status,
   },
+  {
+    icon: Thermometer,
+    label: "Temperature",
+    value: LIVE_READINGS.temperature,
+    unit: "°C",
+    status: statusFor("temperature", LIVE_READINGS.temperature),
+  },
+  {
+    icon: Droplets,
+    label: "Humidity",
+    value: LIVE_READINGS.humidity,
+    unit: "%",
+    status: statusFor("humidity", LIVE_READINGS.humidity),
+  },
+
 ];
 
 const AI_SUGGESTION_PRESETS = [
