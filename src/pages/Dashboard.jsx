@@ -327,7 +327,7 @@ export default function Dashboard() {
               <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center text-amber-500">
                 <Lightbulb size={16} />
               </div>
-              <span>What Your Plant Needs</span>
+              <span>What Your Plant Need - AI suggestions</span>
             </h2>
             <div className="flex items-center gap-2">
               {showSuccessBadge && (
@@ -387,8 +387,8 @@ export default function Dashboard() {
               onClick={handleRunAIAnalysis}
               disabled={isAnalyzing}
               className={`relative group overflow-hidden px-4 py-2 rounded-xl text-xs font-semibold text-white transition-all duration-200 flex items-center gap-2 cursor-pointer shadow-sm select-none outline-none focus:outline-none focus:ring-0 ${isAnalyzing
-                  ? "bg-emerald-700 cursor-not-allowed opacity-90"
-                  : "bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-md hover:shadow-emerald-500/25 active:scale-95"
+                ? "bg-emerald-700 cursor-not-allowed opacity-90"
+                : "bg-gradient-to-r from-emerald-600 via-teal-600 to-green-600 hover:from-emerald-500 hover:to-teal-500 hover:shadow-md hover:shadow-emerald-500/25 active:scale-95"
                 }`}
             >
               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"></span>
