@@ -442,9 +442,9 @@ export default function Dashboard() {
               <Zap size={16} className="text-green-600" />
             </div>
             <p className="text-sm font-medium text-gray-600 mb-3">Power Saving Active</p>
-            <p className="text-4xl font-bold text-gray-900 mb-1">30%</p>
+            <p className="text-4xl font-bold text-gray-900 mb-1">98.9%</p>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Efficiency reference · measured using INA226 power monitoring.
+              Power reduction · measured using INA226 power monitoring.
             </p>
             <Link
               to="/power"

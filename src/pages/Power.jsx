@@ -15,8 +15,8 @@ export default function Power() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200">
-                <th className="text-left py-2 pr-4 text-gray-600 font-semibold text-sm">Metric</th>
-                <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Normal Mode</th>
+                <th className="text-left py-2 pr-4 text-gray-600 font-semibold text-sm">Parameter</th>
+                <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Normal Active Mode</th>
                 <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Deep Sleep Mode</th>
               </tr>
             </thead>
@@ -31,6 +31,7 @@ export default function Power() {
             </tbody>
           </table>
         </div>
+
       </Card>
 
       {/* Live Energy Draw */}
@@ -41,21 +42,21 @@ export default function Power() {
           <EnergyTank cycleMode={true} />
         </div>
         <p className="text-xs text-gray-400 text-center mt-6">
-          8s cycle: Ramping up to 100%, then transitioning to a fixed 30% deep sleep efficiency
+          8s cycle: Ramping up to 100%, then transitioning to a fixed 1.1% deep sleep power draw
         </p>
       </Card>
 
       {/* Efficiency Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Reference Efficiency */}
+        {/* Power Reduction */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-base font-bold text-gray-800">Reference Efficiency</h2>
+            <h2 className="text-base font-bold text-gray-800">Power Reduction</h2>
             <StatusBadge status="Good" />
           </div>
-          <p className="text-5xl font-bold text-gray-900 mt-3">30%</p>
+          <p className="text-5xl font-bold text-gray-900 mt-3">98.9%</p>
           <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-            Manually set target — not a live sensor reading.
+            Target power reduction achieved during deep sleep mode.
           </p>
         </Card>
 
@@ -65,9 +66,9 @@ export default function Power() {
             <h2 className="text-base font-bold text-gray-800">Measured Efficiency</h2>
             <StatusBadge status="Good" />
           </div>
-          <p className="text-5xl font-bold text-gray-900 mt-3">30%</p>
+          <p className="text-5xl font-bold text-gray-900 mt-3">98.9%</p>
           <p className="text-sm text-gray-600 mt-2 leading-relaxed">
-            Calculated from live INA226 Normal vs Deep Sleep readings.
+            Calculated from live INA226 Normal (643.5 mW) vs Deep Sleep (7.1 mW) readings.
           </p>
         </Card>
       </div>

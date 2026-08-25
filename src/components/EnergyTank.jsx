@@ -30,14 +30,14 @@ export default function EnergyTank({
           setModeLabel("Normal Mode");
           setActiveColor("high-green");
         } else if (elapsed < 5000) {
-          // 3s to 5s: Slowly level down to 30%
+          // 3s to 5s: Slowly level down to 1.1%
           const dropProgress = (elapsed - 3000) / 2000;
-          setFill(100 - dropProgress * 70);
+          setFill(100 - dropProgress * 98.9);
           setModeLabel("Deep Sleep Mode Start");
           setActiveColor("low-green");
         } else {
-          // 5s to 8s: Hold fixed at exactly 30% (no floating/oscillation)
-          setFill(30);
+          // 5s to 8s: Hold fixed at exactly 1.1%
+          setFill(1.1);
           setModeLabel("Deep Sleep Mode");
           setActiveColor("low-green");
         }
@@ -136,7 +136,7 @@ export default function EnergyTank({
       {/* Percentage value with smooth curves and modern typography */}
       <div className="h-7 flex items-center justify-center w-full">
         <span className="text-xl font-bold text-gray-800 tracking-tight tabular-nums flex items-baseline justify-center select-none">
-          {Math.round(fill)}
+          {fill < 10 && fill % 1 !== 0 ? fill.toFixed(1) : Math.round(fill)}
           <span className="text-sm font-semibold text-gray-400 ml-0.5">%</span>
         </span>
       </div>
