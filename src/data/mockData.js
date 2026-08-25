@@ -79,10 +79,9 @@ export function genHistory(rangeLabel) {
 // ─── Power comparison table ───────────────────────────────────────────────────
 export const POWER_COMPARISON = [
   { metric: "Voltage", normal: "3.3 V", deepSleep: "3.3 V" },
-  { metric: "Current", normal: "195 mA", deepSleep: "≈1.97 mA*" },
-  { metric: "Power Consumption", normal: "643.5 mW", deepSleep: "7.1 mW*" },
+  { metric: "Current", normal: "195 mA", deepSleep: "≈1.97 mA" },
+  { metric: "Power Consumption", normal: "643.5 mW", deepSleep: "7.1 mW" },
   { metric: "Cycle Duration", normal: "Always ON", deepSleep: "30 s" },
-
   { metric: "Power Used vs Normal", normal: "100%", deepSleep: "≈1.1%" },
 
 ];
