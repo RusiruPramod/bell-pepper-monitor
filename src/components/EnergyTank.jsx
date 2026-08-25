@@ -23,22 +23,24 @@ export default function EnergyTank({
           // 0 to 1s: Level up to 100%
           setFill(Math.min(100, (elapsed / 1000) * 100));
           setModeLabel("Normal Mode");
-          setActiveColor("high-green");
+          setActiveColor("usage-gradient");
         } else if (elapsed < 3000) {
           // 1s to 3s: Hold at 100%
           setFill(100);
           setModeLabel("Normal Mode");
-          setActiveColor("high-green");
+          setActiveColor("usage-gradient");
         } else if (elapsed < 5000) {
           // 3s to 5s: Slowly level down to 1.1%
           const dropProgress = (elapsed - 3000) / 2000;
           setFill(100 - dropProgress * 98.9);
           setModeLabel("Deep Sleep Mode Start");
-          setActiveColor("low-green");
+          setActiveColor("usage-gradient");
         } else {
           // 5s to 8s: Hold fixed at exactly 1.1%
           setFill(1.1);
           setModeLabel("Deep Sleep Mode");
+
+          // Deep Sleep = green only
           setActiveColor("low-green");
         }
 
@@ -46,19 +48,23 @@ export default function EnergyTank({
       };
 
       animationFrame = requestAnimationFrame(cycle);
+
       return () => cancelAnimationFrame(animationFrame);
     } else {
       // Static / Target animation on mount
       setFill(0);
+
       let current = 0;
       const step = targetPercent / 40;
 
       intervalRef.current = setInterval(() => {
         current += step;
+
         if (current >= targetPercent) {
           current = targetPercent;
           clearInterval(intervalRef.current);
         }
+
         setFill(current);
       }, 20);
 
@@ -74,16 +80,27 @@ export default function EnergyTank({
       glow: "shadow-green-300",
       text: "text-gray-700",
     },
+
     blue: {
       bar: "bg-blue-500",
       glow: "shadow-blue-300",
       text: "text-blue-600",
     },
+
+    // Normal Mode: Red → Yellow → Green
+    "usage-gradient": {
+      bar: "bg-gradient-to-t from-green-500 via-yellow-400 to-red-500",
+      glow: "shadow-yellow-300",
+      text: "text-gray-700",
+    },
+
     "high-green": {
       bar: "bg-gradient-to-t from-green-600 via-green-400 to-emerald-300",
       glow: "shadow-green-400",
       text: "text-emerald-600",
     },
+
+    // Deep Sleep: Green only
     "low-green": {
       bar: "bg-green-400/90",
       glow: "shadow-green-300",
@@ -91,13 +108,20 @@ export default function EnergyTank({
     },
   };
 
-  const currentColorKey = cycleMode ? activeColor : color;
-  const c = colorMap[currentColorKey] ?? colorMap["high-green"];
+  // Use activeColor so Deep Sleep can switch to green only
+  const currentColorKey = cycleMode
+    ? activeColor
+    : "usage-gradient";
+
+  const c =
+    colorMap[currentColorKey] ?? colorMap["usage-gradient"];
+
   const displayLabel = cycleMode ? modeLabel : label;
 
   return (
     <div className="flex flex-col items-center gap-3 w-44 sm:w-48 shrink-0">
-      {/* Fixed height and width container for header text to prevent any jumping or layout shift */}
+
+      {/* Fixed header */}
       <div className="h-6 flex items-center justify-center text-center w-full">
         <span
           className={`text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${cycleMode ? c.text : "text-gray-700"
@@ -107,39 +131,54 @@ export default function EnergyTank({
         </span>
       </div>
 
-      {/* Tank Container - identical fixed dimensions across all states */}
+      {/* Tank Container */}
       <div className="w-14 h-52 bg-gray-100 rounded-full relative overflow-hidden border border-gray-200 shadow-inner shrink-0">
+
+        {/* Energy Fill */}
         <div
           className={`absolute bottom-0 left-0 right-0 w-full ${c.bar} shadow-lg ${c.glow} transition-none`}
-          style={{ height: `${Math.min(100, Math.max(0, fill))}%` }}
+          style={{
+            // Make 1.1% visually visible as a minimum 10% green area
+            height: `${Math.min(
+              100,
+              Math.max(fill, fill > 0 ? 10 : 0)
+            )}%`,
+          }}
         />
 
         {/* Bubble overlays */}
         <div className="absolute inset-0 flex flex-col justify-end pb-2 items-center gap-1 pointer-events-none">
-          {fill > 25 &&
-            (currentColorKey === "high-green" || currentColorKey === "green") && (
-              <div
-                className="w-2 h-2 rounded-full bg-white opacity-30 animate-bounce"
-                style={{ animationDelay: "0.1s" }}
-              />
-            )}
-          {fill > 60 &&
-            (currentColorKey === "high-green" || currentColorKey === "green") && (
-              <div
-                className="w-1.5 h-1.5 rounded-full bg-white opacity-20 animate-bounce"
-                style={{ animationDelay: "0.3s" }}
-              />
-            )}
+
+          {fill > 25 && (
+            <div
+              className="w-2 h-2 rounded-full bg-white opacity-30 animate-bounce"
+              style={{ animationDelay: "0.1s" }}
+            />
+          )}
+
+          {fill > 60 && (
+            <div
+              className="w-1.5 h-1.5 rounded-full bg-white opacity-20 animate-bounce"
+              style={{ animationDelay: "0.3s" }}
+            />
+          )}
+
         </div>
       </div>
 
-      {/* Percentage value with smooth curves and modern typography */}
+      {/* Percentage */}
       <div className="h-7 flex items-center justify-center w-full">
         <span className="text-xl font-bold text-gray-800 tracking-tight tabular-nums flex items-baseline justify-center select-none">
-          {fill < 10 && fill % 1 !== 0 ? fill.toFixed(1) : Math.round(fill)}
-          <span className="text-sm font-semibold text-gray-400 ml-0.5">%</span>
+          {fill < 10 && fill % 1 !== 0
+            ? fill.toFixed(1)
+            : Math.round(fill)}
+
+          <span className="text-sm font-semibold text-gray-400 ml-0.5">
+            %
+          </span>
         </span>
       </div>
+
     </div>
   );
 }
