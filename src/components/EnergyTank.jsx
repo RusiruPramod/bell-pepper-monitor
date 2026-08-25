@@ -39,8 +39,6 @@ export default function EnergyTank({
           // 5s to 8s: Hold fixed at exactly 1.1%
           setFill(1.1);
           setModeLabel("Deep Sleep Mode");
-
-          // Deep Sleep = green only
           setActiveColor("low-green");
         }
 
@@ -108,7 +106,6 @@ export default function EnergyTank({
     },
   };
 
-  // Use activeColor so Deep Sleep can switch to green only
   const currentColorKey = cycleMode
     ? activeColor
     : "usage-gradient";
@@ -118,13 +115,19 @@ export default function EnergyTank({
 
   const displayLabel = cycleMode ? modeLabel : label;
 
+  // Minimum visual height for very low values such as 1.1%
+  const visualFill = Math.min(
+    100,
+    Math.max(fill, fill > 0 ? 10 : 0)
+  );
+
   return (
     <div className="flex flex-col items-center gap-3 w-44 sm:w-48 shrink-0">
 
       {/* Fixed header */}
       <div className="h-6 flex items-center justify-center text-center w-full">
         <span
-          className={`text-sm font-semibold whitespace-nowrap transition-colors duration-300 ${cycleMode ? c.text : "text-gray-700"
+          className={`text-sm font-semibold whitespace-nowrap transition-colors duration-700 ${cycleMode ? c.text : "text-gray-700"
             }`}
         >
           {displayLabel}
@@ -134,15 +137,21 @@ export default function EnergyTank({
       {/* Tank Container */}
       <div className="w-14 h-52 bg-gray-100 rounded-full relative overflow-hidden border border-gray-200 shadow-inner shrink-0">
 
-        {/* Energy Fill */}
+        {/* Normal Gradient Layer */}
         <div
-          className={`absolute bottom-0 left-0 right-0 w-full ${c.bar} shadow-lg ${c.glow} transition-none`}
+          className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-green-500 via-yellow-400 to-red-500 shadow-lg shadow-yellow-300 transition-opacity duration-1000 ease-in-out"
           style={{
-            // Make 1.1% visually visible as a minimum 10% green area
-            height: `${Math.min(
-              100,
-              Math.max(fill, fill > 0 ? 10 : 0)
-            )}%`,
+            height: `${visualFill}%`,
+            opacity: activeColor === "low-green" ? 0 : 1,
+          }}
+        />
+
+        {/* Deep Sleep Green Layer */}
+        <div
+          className="absolute bottom-0 left-0 right-0 w-full bg-green-400/90 shadow-lg shadow-green-300 transition-opacity duration-1000 ease-in-out"
+          style={{
+            height: `${visualFill}%`,
+            opacity: activeColor === "low-green" ? 1 : 0,
           }}
         />
 
