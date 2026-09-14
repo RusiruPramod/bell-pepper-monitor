@@ -8,43 +8,49 @@ export default function Power() {
     <div className="space-y-6">
       <PageHeader title="Power Monitoring" subtitle="Measured using INA226" />
 
-      {/* Comparison Table */}
-      <Card className="p-6">
-        <h2 className="text-base font-bold text-gray-800 mb-4">Normal vs Deep Sleep</h2>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-2 pr-4 text-gray-600 font-semibold text-sm">Parameter</th>
-                <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Normal Active Mode</th>
-                <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Deep Sleep Mode</th>
-              </tr>
-            </thead>
-            <tbody>
-              {POWER_COMPARISON.map((row) => (
-                <tr key={row.metric} className="border-b border-gray-100">
-                  <td className="py-3 pr-4 text-gray-600 font-semibold">{row.metric}</td>
-                  <td className="py-3 pr-4 text-gray-800 font-medium">{row.normal}</td>
-                  <td className="py-3 text-gray-800 font-medium">{row.deepSleep}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      {/* Top Section: Comparison Table + Live Energy Draw Cycle Side-by-Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        {/* Comparison Table */}
+        <Card className="lg:col-span-7 p-6 flex flex-col justify-between">
+          <div>
+            <h2 className="text-base font-bold text-gray-800 mb-4">Normal vs Deep Sleep</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-2 pr-4 text-gray-600 font-semibold text-sm">Parameter</th>
+                    <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Normal Active Mode</th>
+                    <th className="text-left py-2 pr-4 text-gray-800 font-bold text-sm">Deep Sleep Mode</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {POWER_COMPARISON.map((row) => (
+                    <tr key={row.metric} className="border-b border-gray-100">
+                      <td className="py-3 pr-4 text-gray-600 font-semibold">{row.metric}</td>
+                      <td className="py-3 pr-4 text-gray-800 font-medium">{row.normal}</td>
+                      <td className="py-3 text-gray-800 font-medium">{row.deepSleep}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Card>
 
-      </Card>
-
-      {/* Live Energy Draw */}
-      <Card className="p-6">
-        <h2 className="text-base font-bold text-gray-800 mb-6">Live Energy Draw Cycle</h2>
-        <div className="flex justify-center items-start gap-12 sm:gap-20">
-          <EnergyTank label="Normal Usage" targetPercent={100} color="high-green" />
-          <EnergyTank cycleMode={true} />
-        </div>
-        <p className="text-xs text-gray-400 text-center mt-6">
-          8s cycle: Ramping up to 100%, then transitioning to a fixed 1.1% deep sleep power draw
-        </p>
-      </Card>
+        {/* Live Energy Draw */}
+        <Card className="lg:col-span-5 p-6 flex flex-col justify-between">
+          <div>
+            <h2 className="text-base font-bold text-gray-800 mb-6">Live Energy Draw Cycle</h2>
+            <div className="flex justify-center items-start gap-8 sm:gap-12">
+              <EnergyTank label="Normal Usage" targetPercent={100} color="high-green" />
+              <EnergyTank cycleMode={true} />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 text-center mt-6">
+            8s cycle: Ramping up to 100%, then transitioning to a fixed 1.1% deep sleep power draw
+          </p>
+        </Card>
+      </div>
 
       {/* Efficiency Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
