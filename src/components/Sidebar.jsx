@@ -15,10 +15,10 @@ import { useAuth } from "../context/AuthContext";
 
 const NAV_ITEMS = [
   { to: "/",              label: "Dashboard",     icon: LayoutDashboard, end: true },
-  { to: "/plant",         label: "Plant",         icon: Leaf            },
-  { to: "/history",       label: "History",       icon: History         },
   { to: "/power",         label: "Power",         icon: Zap             },
   { to: "/communication", label: "Communication", icon: Radio           },
+  { to: "/plant",         label: "Plant",         icon: Leaf            },
+  { to: "/history",       label: "History",       icon: History         },
   { to: "/settings",      label: "Settings",      icon: Settings        },
 ];
 
