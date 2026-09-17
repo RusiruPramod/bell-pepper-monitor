@@ -887,11 +887,13 @@ export default function Dashboard() {
   const [sensorData, setSensorData] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, "sensor_data"), limit(1));
+    const q = query(collection(db, "sensor_data"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      if (!snapshot.empty) {
-        setSensorData(snapshot.docs[0].data());
-      }
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" || change.type === "modified") {
+          setSensorData(change.doc.data());
+        }
+      });
     });
     return () => unsubscribe();
   }, []);
