@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { collection, query, limit, onSnapshot } from "firebase/firestore";
+import { db } from "../firebase";
 import {
   Thermometer, Droplets, FlaskConical, Atom, Leaf, ArrowRight, Zap,
   Sunrise, Sun, Sunset, Moon, Lightbulb, Sparkles, Loader2, Bot, CheckCircle2,
@@ -13,44 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import greenhouseImg from "../assets/bell_pepper_greenhouse.jpg";
 import npkImg from "../assets/npk_sensor1.jpeg";
 
-const CONDITION_CARDS = [
-  {
-    icon: FlaskConical,
-    label: "Nitrogen",
-    value: LIVE_READINGS.nitrogen.value,
-    unit: "ppm",
-    status: LIVE_READINGS.nitrogen.status,
-  },
-  {
-    icon: Atom,
-    label: "Phosphorus",
-    value: LIVE_READINGS.phosphorus.value,
-    unit: "ppm",
-    status: LIVE_READINGS.phosphorus.status,
-  },
-  {
-    icon: Leaf,
-    label: "Potassium",
-    value: LIVE_READINGS.potassium.value,
-    unit: "ppm",
-    status: LIVE_READINGS.potassium.status,
-  },
-  {
-    icon: Thermometer,
-    label: "Temperature",
-    value: LIVE_READINGS.temperature,
-    unit: "°C",
-    status: statusFor("temperature", LIVE_READINGS.temperature),
-  },
-  {
-    icon: Droplets,
-    label: "Humidity",
-    value: LIVE_READINGS.humidity,
-    unit: "%",
-    status: statusFor("humidity", LIVE_READINGS.humidity),
-  },
-
-];
+// CONDITION_CARDS moved inside component to use live Firebase data
 
 const AI_SUGGESTION_PRESETS = [
   [
@@ -919,6 +884,58 @@ const getGreetingInfo = () => {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [sensorData, setSensorData] = useState(null);
+
+  useEffect(() => {
+    const q = query(collection(db, "sensor_data"), limit(1));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      if (!snapshot.empty) {
+        setSensorData(snapshot.docs[0].data());
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const currentTemp = sensorData?.temperature ?? LIVE_READINGS.temperature;
+  const currentHum = sensorData?.humidity ?? LIVE_READINGS.humidity;
+
+  const CONDITION_CARDS = [
+    {
+      icon: FlaskConical,
+      label: "Nitrogen",
+      value: LIVE_READINGS.nitrogen.value,
+      unit: "ppm",
+      status: LIVE_READINGS.nitrogen.status,
+    },
+    {
+      icon: Atom,
+      label: "Phosphorus",
+      value: LIVE_READINGS.phosphorus.value,
+      unit: "ppm",
+      status: LIVE_READINGS.phosphorus.status,
+    },
+    {
+      icon: Leaf,
+      label: "Potassium",
+      value: LIVE_READINGS.potassium.value,
+      unit: "ppm",
+      status: LIVE_READINGS.potassium.status,
+    },
+    {
+      icon: Thermometer,
+      label: "Temperature",
+      value: currentTemp,
+      unit: "°C",
+      status: statusFor("temperature", currentTemp),
+    },
+    {
+      icon: Droplets,
+      label: "Humidity",
+      value: currentHum,
+      unit: "%",
+      status: statusFor("humidity", currentHum),
+    },
+  ];
   const { text, Icon, badgeStyle } = getGreetingInfo();
   const greeting = (
     <div className="inline-flex items-center gap-3">
@@ -1173,15 +1190,27 @@ export default function Dashboard() {
             <div className="space-y-2.5 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 font-medium">Status</span>
-                <StatusBadge status="Connected" />
+                <StatusBadge status={sensorData ? "Connected" : "Waiting for data"} />
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 font-medium">Signal</span>
-                <span className="text-gray-800 font-semibold">Good</span>
+                <span className="text-gray-600 font-medium">Node ID</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.nodeId ?? "N/A"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600 font-medium">Last update</span>
-                <span className="text-gray-800 font-semibold">10s ago</span>
+                <span className="text-gray-600 font-medium">RSSI / SNR</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.rssi ?? "N/A"} dBm / {sensorData?.snr ?? "N/A"} dB</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600 font-medium">Tx Power / Count</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.txPower ?? "N/A"} dBm / {sensorData?.txCount ?? "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600 font-medium">Spreading Factor (SF)</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.sf ?? "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600 font-medium">Boot Count</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.bootCount ?? "N/A"}</span>
               </div>
             </div>
             <Link
