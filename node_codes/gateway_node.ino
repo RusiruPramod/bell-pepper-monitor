@@ -4,6 +4,27 @@
 
 #include <SPI.h>
 #include <LoRa.h>
+#include <WiFi.h>
+#include <Firebase_ESP_Client.h>
+
+// Provide the token generation process info.
+#include "addons/TokenHelper.h"
+
+// WiFi Credentials
+#define WIFI_SSID "ESP32"
+#define WIFI_PASSWORD "12345678"
+
+// Firebase config
+#define API_KEY "AIzaSyA5cNymJHl2DuKMBZr4CYPcc2-ADzDK6OM"
+#define PROJECT_ID "lorawan-16ee0"
+// Firestore requires Email/Password authentication by default for ESP32 Client
+#define USER_EMAIL "lorawanproject4@gmail.com"
+#define USER_PASSWORD "lorawan123"
+
+// Firebase objects
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
 
 // LoRa settings (MUST MATCH NODE 1!)
 #define LORA_FREQUENCY 433E6          // Must match Node 1
@@ -37,6 +58,28 @@ void setup() {
   delay(1000);
   
   Serial.println("\n[*] IoT Gateway - ADR & Duty Cycle Monitor");
+
+  // Initialize WiFi
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("[*] Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(300);
+  }
+  Serial.println();
+  Serial.print("[+] Connected with IP: ");
+  Serial.println(WiFi.localIP());
+
+  // Initialize Firebase
+  Serial.println("[*] Initializing Firebase...");
+  config.api_key = API_KEY;
+  auth.user.email = USER_EMAIL;
+  auth.user.password = USER_PASSWORD;
+  config.token_status_callback = tokenStatusCallback;
+  
+  Firebase.begin(&config, &auth);
+  Firebase.reconnectWiFi(true);
+
   Serial.println("[*] Initializing LoRa receiver...");
   LoRa.setPins(LORA_CS, LORA_RST, LORA_DIO0);
   
@@ -183,6 +226,31 @@ bool parseAndDisplay(String data, int rssi, float snr) {
   Serial.flush();
   delay(20);
   
+  // Send data to Firestore
+  if (Firebase.ready()) {
+    FirebaseJson content;
+    
+    content.set("fields/nodeId/integerValue", nodeId);
+    content.set("fields/temperature/doubleValue", temperature);
+    content.set("fields/humidity/doubleValue", humidity);
+    content.set("fields/bootCount/integerValue", bootCount);
+    content.set("fields/txCount/integerValue", txCount);
+    content.set("fields/sf/integerValue", sf);
+    content.set("fields/txPower/integerValue", txPower);
+    content.set("fields/rssi/integerValue", rssi);
+    content.set("fields/snr/doubleValue", snr);
+    
+    Serial.print("[*] Sending data to Firestore... ");
+    // Empty string for databaseId uses the (default) database
+    // "sensor_data" is the collection path. Firestore will auto-generate a document ID.
+    if (Firebase.Firestore.createDocument(&fbdo, PROJECT_ID, "", "sensor_data", content.raw())) {
+      Serial.println("Success!");
+    } else {
+      Serial.println("Failed!");
+      Serial.println(fbdo.errorReason());
+    }
+  }
+
   return true;
 }
 
