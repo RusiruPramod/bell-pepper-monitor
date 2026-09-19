@@ -900,29 +900,50 @@ export default function Dashboard() {
   }, []);
 
   const currentTemp = sensorData?.temperature ?? LIVE_READINGS.temperature;
-  const currentHum = sensorData?.humidity ?? LIVE_READINGS.humidity;
+  const currentHum  = sensorData?.humidity    ?? LIVE_READINGS.humidity;
+
+  // Live NPK values — fall back to mock data while waiting for first Firestore doc
+  const currentN = sensorData?.nitrogen    ?? LIVE_READINGS.nitrogen.value;
+  const currentP = sensorData?.phosphorus  ?? LIVE_READINGS.phosphorus.value;
+  const currentK = sensorData?.potassium   ?? LIVE_READINGS.potassium.value;
+
+  // Simple NPK status helper (bell-pepper optimal ranges, ppm)
+  const npkStatus = (val, low, high) => {
+    if (val === null || val === undefined) return "Unknown";
+    if (val < low)  return "Low";
+    if (val > high) return "High";
+    return "Good";
+  };
+
+  const nStatus = npkStatus(currentN, 30, 60);
+  const pStatus = npkStatus(currentP, 20, 50);
+  const kStatus = npkStatus(currentK, 20, 40);
+
+  // "Optimal" only when all three are Good
+  const npkOverallStatus =
+    nStatus === "Good" && pStatus === "Good" && kStatus === "Good" ? "Optimal" : "Needs Attention";
 
   const CONDITION_CARDS = [
     {
       icon: FlaskConical,
       label: "Nitrogen",
-      value: LIVE_READINGS.nitrogen.value,
+      value: currentN,
       unit: "ppm",
-      status: LIVE_READINGS.nitrogen.status,
+      status: nStatus,
     },
     {
       icon: Atom,
       label: "Phosphorus",
-      value: LIVE_READINGS.phosphorus.value,
+      value: currentP,
       unit: "ppm",
-      status: LIVE_READINGS.phosphorus.status,
+      status: pStatus,
     },
     {
       icon: Leaf,
       label: "Potassium",
-      value: LIVE_READINGS.potassium.value,
+      value: currentK,
       unit: "ppm",
-      status: LIVE_READINGS.potassium.status,
+      status: kStatus,
     },
     {
       icon: Thermometer,
@@ -1067,27 +1088,42 @@ export default function Dashboard() {
               <FlaskConical size={15} className="text-amber-600" />
             </span>
             <span className="text-base font-bold text-gray-800">NPK Soil Sensor</span>
-            <span className="ml-auto text-xs px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 font-semibold border border-green-100">
-              Optimal
+            <span
+              className={`ml-auto text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
+                !sensorData
+                  ? "bg-gray-50 text-gray-500 border-gray-100"
+                  : npkOverallStatus === "Optimal"
+                  ? "bg-green-50 text-green-700 border-green-100"
+                  : "bg-amber-50 text-amber-700 border-amber-100"
+              }`}
+            >
+              {sensorData ? npkOverallStatus : "Connecting…"}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-1">
             {[
-              { label: "Nitrogen", value: LIVE_READINGS.nitrogen.value, unit: "ppm", color: "text-blue-600" },
-              { label: "Phosphorus", value: LIVE_READINGS.phosphorus.value, unit: "ppm", color: "text-purple-600" },
-              { label: "Potassium", value: LIVE_READINGS.potassium.value, unit: "ppm", color: "text-amber-600" },
-            ].map(({ label, value, unit, color }) => (
+              { label: "Nitrogen",   value: currentN, status: nStatus, unit: "ppm", color: "text-blue-600" },
+              { label: "Phosphorus", value: currentP, status: pStatus, unit: "ppm", color: "text-purple-600" },
+              { label: "Potassium",  value: currentK, status: kStatus, unit: "ppm", color: "text-amber-600" },
+            ].map(({ label, value, status, unit, color }) => (
               <div key={label} className="flex flex-col">
                 <span className="text-sm font-medium text-gray-600 mb-0.5">{label}</span>
                 <span className={`text-2xl font-bold ${color}`}>
-                  {value}
+                  {sensorData ? value : "—"}
                   <span className="text-sm font-medium text-gray-500 ml-1">{unit}</span>
                 </span>
+                {sensorData && status !== "Good" && (
+                  <span className="text-[11px] font-semibold mt-0.5 text-amber-600">{status}</span>
+                )}
               </div>
             ))}
           </div>
           <p className="text-sm text-gray-600 mt-3">
-            Soil nutrient levels are within optimal range for bell pepper growth.
+            {sensorData
+              ? npkOverallStatus === "Optimal"
+                ? "Soil nutrient levels are within optimal range for bell pepper growth."
+                : "One or more nutrient levels need attention. Review the condition cards above."
+              : "Waiting for live sensor data from the LoRa network…"}
           </p>
         </div>
       </div>
