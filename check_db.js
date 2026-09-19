@@ -14,7 +14,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 async function checkDocs() {
-  const q = query(collection(db, "sensor_data"), limit(5));
+  const q = query(collection(db, "sensor_data"), limit(10));
   const snap = await getDocs(q);
   console.log("Found", snap.size, "documents:");
   snap.forEach(d => console.log(d.id, JSON.stringify(d.data())));

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { collection, query, limit, onSnapshot } from "firebase/firestore";
+import { collection, query, limit, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import {
   Thermometer, Droplets, FlaskConical, Atom, Leaf, ArrowRight, Zap,
@@ -887,10 +887,11 @@ export default function Dashboard() {
   const [sensorData, setSensorData] = useState(null);
 
   useEffect(() => {
-    const q = query(collection(db, "sensor_data"));
+    const q = query(collection(db, "sensor_data"), orderBy("lastHandshake", "desc"), limit(1));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added" || change.type === "modified") {
+          console.log("New sensor data received:", change.doc.data());
           setSensorData(change.doc.data());
         }
       });
