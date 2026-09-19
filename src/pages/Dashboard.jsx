@@ -132,39 +132,39 @@ function PowerConsumptionChart() {
   // Key interactive dots with metadata
   const dots = [
     // Top active plateau (left)
-    { x: getX(0),  y: getY(650), color: "#ef4444", time: "10:00:00", mode: "Normal / Active", power: "650.0 mW", current: "196.9 mA" },
+    { x: getX(0), y: getY(650), color: "#ef4444", time: "10:00:00", mode: "Normal / Active", power: "650.0 mW", current: "196.9 mA" },
     { x: getX(10), y: getY(650), color: "#ef4444", time: "10:10:00", mode: "Normal / Active", power: "650.0 mW", current: "196.9 mA" },
     // Left transition
-    { x: getX(13), y: getY(50),  color: "#f59e0b", time: "10:13:00", mode: "Transmission",    power: "50.0 mW",  current: "15.2 mA" },
-    { x: getX(15), y: getY(6.5), color: "#f59e0b", time: "10:15:00", mode: "Transmission",    power: "6.50 mW",  current: "1.97 mA" },
+    { x: getX(13), y: getY(50), color: "#f59e0b", time: "10:13:00", mode: "Transmission", power: "50.0 mW", current: "15.2 mA" },
+    { x: getX(15), y: getY(6.5), color: "#f59e0b", time: "10:15:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
     // Baseline green dots
-    { x: getX(0),  y: getY(6.5), color: "#16a34a", time: "10:00:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(7),  y: getY(6.5), color: "#16a34a", time: "10:07:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(11), y: getY(6.5), color: "#16a34a", time: "10:11:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(18), y: getY(6.5), color: "#16a34a", time: "10:18:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(24), y: getY(6.5), color: "#16a34a", time: "10:24:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
+    { x: getX(0), y: getY(6.5), color: "#16a34a", time: "10:00:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(7), y: getY(6.5), color: "#16a34a", time: "10:07:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(11), y: getY(6.5), color: "#16a34a", time: "10:11:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(18), y: getY(6.5), color: "#16a34a", time: "10:18:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(24), y: getY(6.5), color: "#16a34a", time: "10:24:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
     // Transmission spike
-    { x: getX(26), y: getY(155), color: "#f59e0b", time: "10:26:00", mode: "Transmission",    power: "155.0 mW", current: "47.0 mA" },
-    { x: getX(28), y: getY(6.5), color: "#f59e0b", time: "10:28:00", mode: "Transmission",    power: "6.50 mW",  current: "1.97 mA" },
+    { x: getX(26), y: getY(155), color: "#f59e0b", time: "10:26:00", mode: "Transmission", power: "155.0 mW", current: "47.0 mA" },
+    { x: getX(28), y: getY(6.5), color: "#f59e0b", time: "10:28:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
     // Baseline green dots middle
-    { x: getX(31), y: getY(6.5), color: "#16a34a", time: "10:31:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(36), y: getY(6.5), color: "#16a34a", time: "10:36:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(40), y: getY(6.5), color: "#16a34a", time: "10:40:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(44), y: getY(6.5), color: "#16a34a", time: "10:44:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
+    { x: getX(31), y: getY(6.5), color: "#16a34a", time: "10:31:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(36), y: getY(6.5), color: "#16a34a", time: "10:36:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(40), y: getY(6.5), color: "#16a34a", time: "10:40:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(44), y: getY(6.5), color: "#16a34a", time: "10:44:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
     // Green spike at 10:45 (matching screenshot)
-    { x: getX(45), y: getY(105), color: "#16a34a", time: "10:30:45", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(47), y: getY(6.5), color: "#16a34a", time: "10:47:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(52), y: getY(6.5), color: "#16a34a", time: "10:52:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(57), y: getY(6.5), color: "#16a34a", time: "10:57:00", mode: "Deep Sleep",       power: "6.50 mW",  current: "1.97 mA" },
+    { x: getX(45), y: getY(105), color: "#16a34a", time: "10:30:45", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(47), y: getY(6.5), color: "#16a34a", time: "10:47:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(52), y: getY(6.5), color: "#16a34a", time: "10:52:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(57), y: getY(6.5), color: "#16a34a", time: "10:57:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
     // Right transition to active
-    { x: getX(62), y: getY(6.5), color: "#f59e0b", time: "11:02:00", mode: "Transmission",    power: "6.50 mW",  current: "1.97 mA" },
-    { x: getX(64), y: getY(95),  color: "#f59e0b", time: "11:04:00", mode: "Transmission",    power: "95.0 mW",  current: "28.8 mA" },
+    { x: getX(62), y: getY(6.5), color: "#f59e0b", time: "11:02:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
+    { x: getX(64), y: getY(95), color: "#f59e0b", time: "11:04:00", mode: "Transmission", power: "95.0 mW", current: "28.8 mA" },
     // Right active plateau
     { x: getX(66), y: getY(595), color: "#ef4444", time: "11:06:00", mode: "Normal / Active", power: "595.0 mW", current: "180.3 mA" },
     { x: getX(78), y: getY(595), color: "#ef4444", time: "11:18:00", mode: "Normal / Active", power: "595.0 mW", current: "180.3 mA" },
     // Right transition down
-    { x: getX(80), y: getY(95),  color: "#f59e0b", time: "11:20:00", mode: "Transmission",    power: "95.0 mW",  current: "28.8 mA" },
-    { x: getX(82), y: getY(6.5), color: "#f59e0b", time: "11:22:00", mode: "Transmission",    power: "6.50 mW",  current: "1.97 mA" },
+    { x: getX(80), y: getY(95), color: "#f59e0b", time: "11:20:00", mode: "Transmission", power: "95.0 mW", current: "28.8 mA" },
+    { x: getX(82), y: getY(6.5), color: "#f59e0b", time: "11:22:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
   ];
 
   const yTicks = [700, 600, 500, 400, 300, 200, 100, 0];
@@ -578,12 +578,12 @@ function EnergyConsumptionChart() {
   ];
 
   const points = [
-    { min: 0,  energy: 0.00,  time: "10:00", x: getX(0),  y: getY(0.00) },
-    { min: 13, energy: 0.15,  time: "10:13", x: getX(13), y: getY(0.15) },
-    { min: 25, energy: 0.34,  time: "10:25", x: getX(25), y: getY(0.34) },
-    { min: 38, energy: 0.53,  time: "10:38", x: getX(38), y: getY(0.53) },
-    { min: 50, energy: 0.72,  time: "10:50", x: getX(50), y: getY(0.72) },
-    { min: 62, energy: 0.91,  time: "11:02", x: getX(62), y: getY(0.91) },
+    { min: 0, energy: 0.00, time: "10:00", x: getX(0), y: getY(0.00) },
+    { min: 13, energy: 0.15, time: "10:13", x: getX(13), y: getY(0.15) },
+    { min: 25, energy: 0.34, time: "10:25", x: getX(25), y: getY(0.34) },
+    { min: 38, energy: 0.53, time: "10:38", x: getX(38), y: getY(0.53) },
+    { min: 50, energy: 0.72, time: "10:50", x: getX(50), y: getY(0.72) },
+    { min: 62, energy: 0.91, time: "11:02", x: getX(62), y: getY(0.91) },
     { min: 78, energy: 1.134, time: "11:18", x: getX(78), y: getY(1.134) },
   ];
 
@@ -1196,23 +1196,23 @@ export default function Dashboard() {
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Node ID</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.nodeId ?? "N/A"}</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.nodeId ?? "pending"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">RSSI / SNR</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.rssi ?? "N/A"} dBm / {sensorData?.snr ?? "N/A"} dB</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.rssi ?? "pending"} dBm / {sensorData?.snr ?? "pending"} dB</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Tx Power / Count</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.txPower ?? "N/A"} dBm / {sensorData?.txCount ?? "N/A"}</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.txPower ?? "pending"} dBm / {sensorData?.txCount ?? "pending"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Spreading Factor (SF)</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.sf ?? "N/A"}</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.sf ?? "pending"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Boot Count</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.bootCount ?? "N/A"}</span>
+                <span className="text-gray-800 font-semibold">{sensorData?.bootCount ?? "pending"}</span>
               </div>
             </div>
             <Link

@@ -1,7 +1,7 @@
 
 // ============================================================
 // ESP32 + RA-02 LoRa Gateway
-// ADR + Duty Cycle Monitoring + Firebase Firestore
+// ADR + Duty Cycle Monitoring + Firebase Firestore + RTDB
 //
 // SERIAL MONITOR:
 //   Baud rate = 115200
@@ -11,8 +11,12 @@
 //   Spreading Factor = SF7
 //   Bandwidth = 125 kHz
 //
-// IMPORTANT:
-// Node and Gateway LoRa settings must match.
+// FIREBASE:
+//   Dual write:
+//     - RTDB gateway/live   (real-time live snapshot)
+//     - Firestore sensor_data (historical records)
+//
+// PACKET FORMAT (CSV): NodeID,Temp,Hum,Boot,TX,SF,Power
 // ============================================================
 
 #include <SPI.h>
@@ -20,6 +24,8 @@
 #include <WiFi.h>
 #include <Firebase_ESP_Client.h>
 #include "addons/TokenHelper.h"
+#include "addons/RTDBHelper.h"
+#include <time.h>
 
 // ============================================================
 // SERIAL
@@ -38,10 +44,11 @@
 #define WIFI_PASSWORD "12345678"
 
 // Firebase config
-#define API_KEY "AIzaSyA5cNymJHl2DuKMBZr4CYPcc2-ADzDK6OM"
-#define PROJECT_ID "lorawan-16ee0"
+#define API_KEY      "AIzaSyA5cNymJHl2DuKMBZr4CYPcc2-ADzDK6OM"
+#define PROJECT_ID   "lorawan-16ee0"
+#define DATABASE_URL "https://lorawan-16ee0-default-rtdb.firebaseio.com"
 // Firestore requires Email/Password authentication by default for ESP32 Client
-#define USER_EMAIL "lorawanproject4@gmail.com"
+#define USER_EMAIL    "lorawanproject4@gmail.com"
 #define USER_PASSWORD "lorawan123"
 
 // ============================================================
@@ -95,6 +102,7 @@ FirebaseConfig config;
 // ============================================================
 
 unsigned long packetsReceived = 0;
+unsigned long packetsSent     = 0;   // Cumulative from node TX counter
 unsigned long packetsFailed   = 0;
 
 unsigned long sf7Count  = 0;
@@ -103,6 +111,23 @@ unsigned long sf9Count  = 0;
 unsigned long sf10Count = 0;
 unsigned long sf11Count = 0;
 unsigned long sf12Count = 0;
+
+// ============================================================
+// HELPER: ISO-8601 UTC Timestamp
+// ============================================================
+
+String getISOTimestamp()
+{
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    // Fallback: millis as string
+    return String(millis());
+  }
+  char buf[30];
+  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+  return String(buf);
+}
 
 // ============================================================
 // FUNCTION DECLARATIONS
@@ -244,6 +269,20 @@ void connectWiFi()
   Serial.println(" dBm");
 
   Serial.println();
+
+  // Sync NTP time for real UTC timestamps
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.print("[*] Syncing NTP time");
+  struct tm timeinfo;
+  for (int i = 0; i < 10; i++) {
+    if (getLocalTime(&timeinfo)) {
+      Serial.println(" OK");
+      break;
+    }
+    Serial.print(".");
+    delay(500);
+  }
+  Serial.println();
 }
 
 // ============================================================
@@ -254,9 +293,10 @@ void initializeFirebase()
 {
   Serial.println("[*] Initializing Firebase...");
 
-  config.api_key = API_KEY;
+  config.api_key   = API_KEY;
+  config.database_url = DATABASE_URL;
 
-  auth.user.email = USER_EMAIL;
+  auth.user.email    = USER_EMAIL;
   auth.user.password = USER_PASSWORD;
 
   config.token_status_callback = tokenStatusCallback;
@@ -624,83 +664,148 @@ bool parseAndDisplay(
   );
 
   // ----------------------------------------------------------
-  // Firebase
+  // Build ISO-8601 lastSeen timestamp (ms since epoch as string)
+  // We use millis() as a proxy; for real wall-clock time use NTP.
+  // ----------------------------------------------------------
+
+  // Approximate air time for this SF (ms)
+  float airTime = 41.0;
+  switch (sf) {
+    case 7:  airTime =  41.2; break;
+    case 8:  airTime =  72.0; break;
+    case 9:  airTime = 144.0; break;
+    case 10: airTime = 247.0; break;
+    case 11: airTime = 494.0; break;
+    case 12: airTime = 988.0; break;
+  }
+
+  // packetsSent tracks the node's own TX counter
+  packetsSent = txCount;
+
+  // ----------------------------------------------------------
+  // Firebase Dual Write
   // ----------------------------------------------------------
 
   if (Firebase.ready())
   {
-    FirebaseJson content;
+    // ── 1. Advanced Metrics Calculation ───────────────────────
+    float pdr = 0.0;
+    if (packetsSent > 0) {
+      pdr = ((float)packetsReceived / (float)packetsSent) * 100.0;
+    }
+    float packetLoss = 100.0 - pdr;
+    
+    unsigned long currentMillis = millis();
+    static unsigned long lastReceiveMillis = 0;
+    float uplinkInterval = 0.0;
+    if (lastReceiveMillis > 0) {
+      uplinkInterval = (currentMillis - lastReceiveMillis) / 1000.0;
+    }
+    lastReceiveMillis = currentMillis;
 
-    content.set(
-      "fields/nodeId/integerValue",
-      nodeId
-    );
+    String linkReliability = "Low";
+    if (pdr > 90.0) linkReliability = "High";
+    else if (pdr > 70.0) linkReliability = "Medium";
 
-    content.set(
-      "fields/temperature/doubleValue",
-      temperature
-    );
+    String lastSeenStr = getISOTimestamp();
+    String gatewayMac = WiFi.macAddress();
 
-    content.set(
-      "fields/humidity/doubleValue",
-      humidity
-    );
+    // ── 2. RTDB live snapshot ─────────────────────────────────
+    // Path: gateway/live  (overwritten on every packet)
+    // This is what the dashboard reads in real-time.
 
-    content.set(
-      "fields/bootCount/integerValue",
-      bootCount
-    );
+    FirebaseJson rtdbJson;
+    rtdbJson.set("temperature", temperature);
+    rtdbJson.set("humidity", humidity);
+    rtdbJson.set("packetDeliveryRatio", pdr);
+    rtdbJson.set("totalPacketsSent", (int)packetsSent);
+    rtdbJson.set("totalPacketsReceived", (int)packetsReceived);
+    rtdbJson.set("packetLossRate", packetLoss);
+    rtdbJson.set("lastHandshake", lastSeenStr);
+    rtdbJson.set("transmissionTime", airTime);
+    rtdbJson.set("uplinkInterval", uplinkInterval);
+    rtdbJson.set("payloadDataLength", data.length());
+    rtdbJson.set("linkReliability", linkReliability);
+    rtdbJson.set("queueLatency", 15); // Estimated latency in ms
+    rtdbJson.set("transmitterNodeId", nodeId);
+    rtdbJson.set("receiverGatewayId", gatewayMac);
+    rtdbJson.set("loraModule", "SX1278 (RA-02)");
+    rtdbJson.set("microcontroller", "ESP32");
+    rtdbJson.set("networkProtocol", "LoRa (P2P)");
+    rtdbJson.set("hardwareMac", "SENSOR_NODE_DEFAULT");
+    rtdbJson.set("firmwareVersion", "v1.1.0");
+    rtdbJson.set("powerSource", "USB Power");
+    rtdbJson.set("rssi", rssi);
+    rtdbJson.set("snr", snr);
+    rtdbJson.set("adrLinkQualityControl", "Enabled");
+    rtdbJson.set("frequencyBand", "433 MHz");
+    rtdbJson.set("spreadingFactor", sf);
+    rtdbJson.set("signalBandwidth", "125 kHz");
+    rtdbJson.set("txPowerOutput", txPower);
+    rtdbJson.set("codingRate", "4/5");
+    rtdbJson.set("preambleLength", 8);
+    rtdbJson.set("syncWord", "0x12");
 
-    content.set(
-      "fields/txCount/integerValue",
-      txCount
-    );
-
-    content.set(
-      "fields/sf/integerValue",
-      sf
-    );
-
-    content.set(
-      "fields/txPower/integerValue",
-      txPower
-    );
-
-    content.set(
-      "fields/rssi/integerValue",
-      rssi
-    );
-
-    content.set(
-      "fields/snr/doubleValue",
-      snr
-    );
-
-    Serial.print("[*] Firebase: ");
-
-    if (
-      Firebase.Firestore.createDocument(
-        &fbdo,
-        PROJECT_ID,
-        "",
-        "sensor_data",
-        content.raw()
-      )
-    )
+    Serial.print("[*] RTDB: ");
+    if (Firebase.RTDB.setJSON(&fbdo, "/gateway/live", &rtdbJson))
     {
-      Serial.println("SUCCESS");
+      Serial.println("OK");
     }
     else
     {
-      Serial.println("FAILED");
+      Serial.print("FAIL — ");
+      Serial.println(fbdo.errorReason());
+    }
 
-      Serial.print("[!] Firebase Error: ");
+    // ── 3. Firestore historical record ────────────────────────
+    // Collection: sensor_data  (one document per packet = history)
+
+    FirebaseJson fsDoc;
+    fsDoc.set("fields/temperature/doubleValue", temperature);
+    fsDoc.set("fields/humidity/doubleValue", humidity);
+    fsDoc.set("fields/packetDeliveryRatio/doubleValue", pdr);
+    fsDoc.set("fields/totalPacketsSent/integerValue", (int)packetsSent);
+    fsDoc.set("fields/totalPacketsReceived/integerValue", (int)packetsReceived);
+    fsDoc.set("fields/packetLossRate/doubleValue", packetLoss);
+    fsDoc.set("fields/lastHandshake/stringValue", lastSeenStr);
+    fsDoc.set("fields/transmissionTime/doubleValue", airTime);
+    fsDoc.set("fields/uplinkInterval/doubleValue", uplinkInterval);
+    fsDoc.set("fields/payloadDataLength/integerValue", data.length());
+    fsDoc.set("fields/linkReliability/stringValue", linkReliability);
+    fsDoc.set("fields/queueLatency/integerValue", 15);
+    fsDoc.set("fields/transmitterNodeId/integerValue", nodeId);
+    fsDoc.set("fields/receiverGatewayId/stringValue", gatewayMac);
+    fsDoc.set("fields/loraModule/stringValue", "SX1278 (RA-02)");
+    fsDoc.set("fields/microcontroller/stringValue", "ESP32");
+    fsDoc.set("fields/networkProtocol/stringValue", "LoRa (P2P)");
+    fsDoc.set("fields/hardwareMac/stringValue", "SENSOR_NODE_DEFAULT");
+    fsDoc.set("fields/firmwareVersion/stringValue", "v1.1.0");
+    fsDoc.set("fields/powerSource/stringValue", "Battery/USB");
+    fsDoc.set("fields/rssi/integerValue", rssi);
+    fsDoc.set("fields/snr/doubleValue", snr);
+    fsDoc.set("fields/adrLinkQualityControl/stringValue", "Enabled");
+    fsDoc.set("fields/frequencyBand/stringValue", "433 MHz");
+    fsDoc.set("fields/spreadingFactor/integerValue", sf);
+    fsDoc.set("fields/signalBandwidth/stringValue", "125 kHz");
+    fsDoc.set("fields/txPowerOutput/integerValue", txPower);
+    fsDoc.set("fields/codingRate/stringValue", "4/5");
+    fsDoc.set("fields/preambleLength/integerValue", 8);
+    fsDoc.set("fields/syncWord/stringValue", "0x12");
+
+    Serial.print("[*] Firestore: ");
+    if (Firebase.Firestore.createDocument(&fbdo, PROJECT_ID, "", "sensor_data", fsDoc.raw()))
+    {
+      Serial.println("OK");
+    }
+    else
+    {
+      Serial.print("FAIL — ");
       Serial.println(fbdo.errorReason());
     }
   }
   else
   {
-    Serial.println("[!] Firebase not ready.");
+    Serial.println("[!] Firebase not ready — skipping write.");
   }
 
   return true;
