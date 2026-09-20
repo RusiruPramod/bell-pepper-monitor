@@ -4,6 +4,7 @@ import { db } from "../firebase";
 import { Loader2, Zap, BatteryCharging, Activity, Power as PowerIcon, PowerOff } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import EnergyTank from "../components/EnergyTank";
+import SavingsCalculator from "../components/SavingsCalculator";
 import { Card, StatusBadge } from "../components/ui";
 
 // ─── Static fallback defaults (used before Firestore data arrives) ──────────
@@ -314,6 +315,9 @@ export default function Power() {
           </p>
         </Card>
       </div>
+      
+      {/* Interactive Savings Calculator (Stopwatch / Timer) */}
+      <SavingsCalculator activePower={act.power} sleepPower={slp.power} />
     </div>
   );
 }
