@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
-import { Loader2, Zap, BatteryCharging, Activity } from "lucide-react";
+import { Loader2, Zap, BatteryCharging, Activity, Power, PowerOff } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import EnergyTank from "../components/EnergyTank";
 import { Card, StatusBadge } from "../components/ui";
@@ -156,14 +156,18 @@ export default function Power() {
             {displayMode && (
               <span
                 key={displayMode}          /* key forces re-mount → CSS fade-in on change */
-                className={`text-xs font-bold px-3 py-1 rounded-full border transition-all duration-500 animate-fadeIn ${
+                className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full border transition-all duration-500 animate-fadeIn ${
                   displayMode === "SLEEP"
                     ? "bg-blue-50 border-blue-200 text-blue-700"
                     : "bg-amber-50 border-amber-200 text-amber-700"
                 }`}
                 title={currentMode ? "Live Firebase reading" : "Synced with Energy Draw Cycle animation"}
               >
-                {displayMode === "SLEEP" ? "😴 Deep Sleep" : `⚡ ${displayMode}`}
+                {displayMode === "SLEEP" ? (
+                  <><PowerOff className="w-3.5 h-3.5" /> Deep Sleep</>
+                ) : (
+                  <><Power className="w-3.5 h-3.5" /> {displayMode}</>
+                )}
               </span>
             )}
           </>
@@ -250,10 +254,14 @@ export default function Power() {
               />
             </div>
           </div>
-          <p className="text-xs text-gray-400 text-center mt-6">
+          <p className="text-xs text-gray-400 text-center mt-6 flex items-center justify-center gap-1">
             Right tank reflects live status:{" "}
-            <span className="font-semibold">
-              {displayMode === "SLEEP" ? `😴 Deep Sleep (${deepSleepPct})` : "⚡ Normal Active Mode (100%)"}
+            <span className="font-semibold inline-flex items-center gap-1">
+              {displayMode === "SLEEP" ? (
+                <><PowerOff className="w-3.5 h-3.5" /> Deep Sleep ({deepSleepPct})</>
+              ) : (
+                <><Power className="w-3.5 h-3.5" /> Normal Active Mode (100%)</>
+              )}
             </span>
           </p>
         </Card>
