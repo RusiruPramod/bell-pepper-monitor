@@ -1,3 +1,4 @@
+
 #include <SPI.h>
 #include <LoRa.h>
 #include <WiFi.h>
@@ -15,7 +16,7 @@
 #define API_KEY      "AIzaSyA5cNymJHl2DuKMBZr4CYPcc2-ADzDK6OM"
 #define PROJECT_ID   "lorawan-16ee0"
 #define DATABASE_URL "https://lorawan-16ee0-default-rtdb.firebaseio.com"
-#define USER_EMAIL    "lorawanproject4@gmail.com"
+#define USER_EMAIL   "lorawanproject4@gmail.com"
 #define USER_PASSWORD "lorawan123"
 
 FirebaseData fbdo;
@@ -42,6 +43,29 @@ FirebaseConfig config;
 #define RSSI_GOOD      -70
 #define RSSI_WEAK      -90
 
+#define SDA_PIN 32
+#define SCL_PIN 33
+
+#define SHUNT_RESISTANCE 0.002
+#define MAX_CURRENT 0.5
+
+#define VOLTAGE_OFFSET 1.7
+
+#define SLEEP_VOLTAGE    3.3
+#define SLEEP_CURRENT_MA 1.97
+#define SLEEP_POWER_MW   7.10
+
+#define NODE_SLEEP_TIMEOUT 120000UL
+
+INA226 ina226(0x40);
+
+bool nodeActive = false;
+bool ina226Ready = false;
+
+unsigned long lastPacketTime = 0;
+unsigned long lastPowerDisplay = 0;
+unsigned long expectedUplinkInterval = 0;
+
 unsigned long packetsReceived = 0;
 unsigned long packetsSent     = 0;
 unsigned long packetsFailed   = 0;
@@ -53,32 +77,6 @@ unsigned long sf10Count = 0;
 unsigned long sf11Count = 0;
 unsigned long sf12Count = 0;
 
-#define SDA_PIN 32
-#define SCL_PIN 33
-
-#define SHUNT_RESISTANCE 0.002
-#define MAX_CURRENT 0.5
-
-#define VOLTAGE_OFFSET 1.7
-
-#define NORMAL_ACTIVE_TIME 30000UL
-#define DEEP_SLEEP_TIME    10000UL
-
-#define SLEEP_VOLTAGE    3.3
-#define SLEEP_CURRENT_MA 1.97
-#define SLEEP_POWER_MW   7.10
-
-INA226 ina226(0x40);
-
-bool deepSleepMode = false;
-unsigned long modeStartTime = 0;
-unsigned long lastPowerDisplayTime = 0;
-
-float inaBusVoltage = 0.0;
-float inaActualVoltage = 0.0;
-float inaCurrent_mA = 0.0;
-float inaPower_mW = 0.0;
-
 String getISOTimestamp() {
   time_t now;
   struct tm timeinfo;
@@ -88,7 +86,14 @@ String getISOTimestamp() {
   }
 
   char buf[30];
-  strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+
+  strftime(
+    buf,
+    sizeof(buf),
+    "%Y-%m-%dT%H:%M:%SZ",
+    &timeinfo
+  );
+
   return String(buf);
 }
 
@@ -97,18 +102,41 @@ void initializeFirebase();
 void initializeLoRa();
 void initializeINA226();
 void updatePowerMonitor();
-void displayPowerMonitor();
-
 void receiveAndProcess();
-bool parseAndDisplay(String data, int rssi, float snr);
-void displayADRInfo(int sf, int txPower, int rssi, float snr);
+
+bool parseAndDisplay(
+  String data,
+  int rssi,
+  float snr
+);
+
+void displayADRInfo(
+  int sf,
+  int txPower,
+  int rssi,
+  float snr
+);
+
 void updateSFStats(int sf);
 void displayADRStats();
-void analyzeEnergy(float temperature, float humidity);
+
+void analyzeEnergy(
+  float temperature,
+  float humidity
+);
+
+void getPowerValues(
+  float &busVoltage,
+  float &actualVoltage,
+  float &current_mA,
+  float &power_mW,
+  String &powerMode
+);
 
 void setup() {
 
   Serial.begin(SERIAL_BAUD);
+
   delay(1000);
 
   Serial.println();
@@ -124,30 +152,28 @@ void setup() {
 
   initializeFirebase();
 
-  initializeINA226();
-
   initializeLoRa();
 
-  deepSleepMode = false;
-  modeStartTime = millis();
+  initializeINA226();
 
   Serial.println();
   Serial.println("================================================");
   Serial.println("[+] SYSTEM READY");
   Serial.println("[*] Waiting for LoRa packets...");
+  Serial.println("[*] INA226 synchronized with LoRa activity");
   Serial.println("================================================");
   Serial.println();
 }
 
 void loop() {
 
-  updatePowerMonitor();
-
   int packetSize = LoRa.parsePacket();
 
   if (packetSize > 0) {
     receiveAndProcess();
   }
+
+  updatePowerMonitor();
 
   delay(5);
 }
@@ -157,7 +183,11 @@ void connectWiFi() {
   Serial.println("[*] Connecting to WiFi...");
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  WiFi.begin(
+    WIFI_SSID,
+    WIFI_PASSWORD
+  );
 
   unsigned long startTime = millis();
 
@@ -190,7 +220,12 @@ void connectWiFi() {
 
   Serial.println();
 
-  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  configTime(
+    0,
+    0,
+    "pool.ntp.org",
+    "time.nist.gov"
+  );
 
   Serial.print("[*] Syncing NTP time");
 
@@ -201,10 +236,12 @@ void connectWiFi() {
     if (getLocalTime(&timeinfo)) {
 
       Serial.println(" OK");
+
       break;
     }
 
     Serial.print(".");
+
     delay(500);
   }
 
@@ -215,19 +252,91 @@ void initializeFirebase() {
 
   Serial.println("[*] Initializing Firebase...");
 
-  config.api_key      = API_KEY;
+  config.api_key = API_KEY;
+
   config.database_url = DATABASE_URL;
 
-  auth.user.email     = USER_EMAIL;
-  auth.user.password  = USER_PASSWORD;
+  auth.user.email = USER_EMAIL;
 
-  config.token_status_callback = tokenStatusCallback;
+  auth.user.password = USER_PASSWORD;
 
-  Firebase.begin(&config, &auth);
+  config.token_status_callback =
+    tokenStatusCallback;
+
+  Firebase.begin(
+    &config,
+    &auth
+  );
 
   Firebase.reconnectWiFi(true);
 
   Serial.println("[+] Firebase initialized.");
+
+  Serial.println();
+}
+
+void initializeLoRa() {
+
+  Serial.println("[*] Initializing LoRa...");
+
+  SPI.begin(
+    LORA_SCK,
+    LORA_MISO,
+    LORA_MOSI,
+    LORA_CS
+  );
+
+  LoRa.setPins(
+    LORA_CS,
+    LORA_RST,
+    LORA_DIO0
+  );
+
+  if (!LoRa.begin(LORA_FREQUENCY)) {
+
+    Serial.println(
+      "[ERROR] LoRa initialization FAILED!"
+    );
+
+    while (true) {
+      delay(1000);
+    }
+  }
+
+  LoRa.setSpreadingFactor(
+    LORA_SPREADING_FACTOR
+  );
+
+  LoRa.setSignalBandwidth(
+    LORA_BANDWIDTH
+  );
+
+  LoRa.enableCrc();
+
+  LoRa.setSyncWord(0x12);
+
+  Serial.println("[+] LoRa initialized.");
+
+  Serial.print("[-] Frequency: ");
+  Serial.print(
+    LORA_FREQUENCY / 1000000.0
+  );
+  Serial.println(" MHz");
+
+  Serial.print("[-] Spreading Factor: SF");
+  Serial.println(
+    LORA_SPREADING_FACTOR
+  );
+
+  Serial.print("[-] Bandwidth: ");
+  Serial.print(
+    LORA_BANDWIDTH / 1000.0
+  );
+  Serial.println(" kHz");
+
+  Serial.println("[-] CRC: Enabled");
+  Serial.println("[-] Sync Word: 0x12");
+
   Serial.println();
 }
 
@@ -235,211 +344,497 @@ void initializeINA226() {
 
   Serial.println("[*] Initializing INA226...");
 
-  Wire.begin(SDA_PIN, SCL_PIN);
+  Wire.begin(
+    SDA_PIN,
+    SCL_PIN
+  );
 
   if (!ina226.begin()) {
 
-    Serial.println("INA226 NOT FOUND!");
+    Serial.println(
+      "[ERROR] INA226 NOT FOUND!"
+    );
 
-    while (1) {
-      delay(1000);
+    Serial.println(
+      "[!] Check SDA = GPIO32"
+    );
+
+    Serial.println(
+      "[!] Check SCL = GPIO33"
+    );
+
+    Serial.println(
+      "[!] Check VCC/GND"
+    );
+
+    Serial.println(
+      "[!] Check I2C address 0x40"
+    );
+
+    ina226Ready = false;
+
+  } else {
+
+    int result =
+      ina226.setMaxCurrentShunt(
+        MAX_CURRENT,
+        SHUNT_RESISTANCE
+      );
+
+    if (result != 0) {
+
+      Serial.print(
+        "[ERROR] INA226 Calibration Error: "
+      );
+
+      Serial.println(
+        result,
+        HEX
+      );
+
+      ina226Ready = false;
+
+    } else {
+
+      ina226.setAverage(
+        INA226_1_SAMPLE
+      );
+
+      ina226Ready = true;
+
+      Serial.println(
+        "[+] INA226 READY"
+      );
+
+      Serial.println(
+        "[-] I2C Address: 0x40"
+      );
+
+      Serial.println(
+        "[-] SDA: GPIO32"
+      );
+
+      Serial.println(
+        "[-] SCL: GPIO33"
+      );
+
+      Serial.println(
+        "[-] Shunt: 0.002 Ohm"
+      );
+
+      Serial.println(
+        "[-] Max Current: 0.5 A"
+      );
+
+      Serial.println(
+        "[-] Voltage Offset: 1.7 V"
+      );
     }
   }
 
-  int result = ina226.setMaxCurrentShunt(
-    MAX_CURRENT,
-    SHUNT_RESISTANCE
-  );
+  Serial.println();
+}
 
-  if (result != 0) {
+void getPowerValues(
+  float &busVoltage,
+  float &actualVoltage,
+  float &current_mA,
+  float &power_mW,
+  String &powerMode
+) {
 
-    Serial.print("Calibration Error: ");
-    Serial.println(result, HEX);
+  if (!nodeActive) {
 
-    while (1) {
-      delay(1000);
-    }
+    busVoltage = SLEEP_VOLTAGE + VOLTAGE_OFFSET;
+
+    actualVoltage = SLEEP_VOLTAGE;
+
+    current_mA = SLEEP_CURRENT_MA;
+
+    power_mW = SLEEP_POWER_MW;
+
+    powerMode = "SLEEP";
+
+    return;
   }
 
-  ina226.setAverage(INA226_1_SAMPLE);
+  if (!ina226Ready) {
 
-  Serial.println("[+] INA226 READY");
-  Serial.println();
+    busVoltage = 0.0;
 
-  deepSleepMode = false;
-  modeStartTime = millis();
+    actualVoltage = 0.0;
 
-  Serial.println(">>> NORMAL ACTIVE MODE");
-  Serial.println();
+    current_mA = 0.0;
+
+    power_mW = 0.0;
+
+    powerMode = "INA226_ERROR";
+
+    return;
+  }
+
+  busVoltage =
+    ina226.getBusVoltage();
+
+  float current_A =
+    ina226.getCurrent();
+
+  actualVoltage =
+    busVoltage -
+    VOLTAGE_OFFSET;
+
+  if (actualVoltage < 0.0) {
+    actualVoltage = 0.0;
+  }
+
+  current_mA =
+    current_A * 1000.0;
+
+  if (current_mA < 0.0) {
+    current_mA = 0.0;
+  }
+
+  power_mW =
+    actualVoltage *
+    current_mA;
+
+  powerMode = "ACTIVE";
 }
 
 void updatePowerMonitor() {
 
+  if (!ina226Ready) {
+    return;
+  }
+
   unsigned long now = millis();
 
-  if (!deepSleepMode) {
+  if (lastPacketTime == 0) {
 
-    float busVoltage = ina226.getBusVoltage();
-    float current_A  = ina226.getCurrent();
-
-    float actualVoltage = busVoltage - VOLTAGE_OFFSET;
-
-    if (actualVoltage < 0.0) {
-      actualVoltage = 0.0;
+    if (now - lastPowerDisplay < 2000) {
+      return;
     }
 
-    float actualCurrent_mA = current_A * 1000.0;
+    lastPowerDisplay = now;
 
-    if (actualCurrent_mA < 0.0) {
-      actualCurrent_mA = 0.0;
+    Serial.println("--------------------------------");
+    Serial.println("WAITING FOR SENSOR NODE");
+    Serial.println("INA226 POWER MONITOR");
+    Serial.println("--------------------------------");
+
+    float busVoltage;
+    float actualVoltage;
+    float current_mA;
+    float power_mW;
+    String powerMode;
+
+    nodeActive = false;
+
+    getPowerValues(
+      busVoltage,
+      actualVoltage,
+      current_mA,
+      power_mW,
+      powerMode
+    );
+
+    Serial.print("Voltage : ");
+    Serial.print(actualVoltage, 3);
+    Serial.println(" V");
+
+    Serial.print("Current : ");
+    Serial.print(current_mA, 3);
+    Serial.println(" mA");
+
+    Serial.print("Power   : ");
+    Serial.print(power_mW, 3);
+    Serial.println(" mW");
+
+    Serial.print("Mode    : ");
+    Serial.println(powerMode);
+
+    return;
+  }
+
+  unsigned long timeSincePacket =
+    now - lastPacketTime;
+
+  bool previousState =
+    nodeActive;
+
+  if (expectedUplinkInterval > 0) {
+
+    unsigned long sleepThreshold =
+      expectedUplinkInterval + 5000UL;
+
+    if (sleepThreshold < 10000UL) {
+      sleepThreshold = 10000UL;
     }
 
-    float actualPower_mW =
-      actualVoltage * actualCurrent_mA;
-
-    inaBusVoltage = busVoltage;
-    inaActualVoltage = actualVoltage;
-    inaCurrent_mA = actualCurrent_mA;
-    inaPower_mW = actualPower_mW;
-
-    if (now - lastPowerDisplayTime >= 1000) {
-
-      lastPowerDisplayTime = now;
-
-      Serial.println("--------------------------------");
-      Serial.println("NORMAL ACTIVE MODE");
-
-      Serial.print("INA226 Bus Voltage : ");
-      Serial.print(busVoltage, 3);
-      Serial.println(" V");
-
-      Serial.print("Voltage            : ");
-      Serial.print(actualVoltage, 3);
-      Serial.println(" V");
-
-      Serial.print("Current            : ");
-      Serial.print(actualCurrent_mA, 3);
-      Serial.println(" mA");
-
-      Serial.print("Power Consumption  : ");
-      Serial.print(actualPower_mW, 3);
-      Serial.println(" mW");
-
-      Serial.println("--------------------------------");
-    }
-
-    if (now - modeStartTime >= NORMAL_ACTIVE_TIME) {
-
-      deepSleepMode = true;
-      modeStartTime = now;
-
-      Serial.println();
-      Serial.println("********************************");
-      Serial.println("30 SECONDS COMPLETED");
-      Serial.println("SWITCHING TO DEEP SLEEP MODE");
-      Serial.println("********************************");
-      Serial.println();
+    if (timeSincePacket >= sleepThreshold) {
+      nodeActive = false;
+    } else {
+      nodeActive = true;
     }
 
   } else {
 
-    float voltage = SLEEP_VOLTAGE;
-    float current_mA = SLEEP_CURRENT_MA;
-    float power_mW = SLEEP_POWER_MW;
-
-    inaBusVoltage = voltage;
-    inaActualVoltage = voltage;
-    inaCurrent_mA = current_mA;
-    inaPower_mW = power_mW;
-
-    if (now - lastPowerDisplayTime >= 1000) {
-
-      lastPowerDisplayTime = now;
-
-      Serial.println("--------------------------------");
-      Serial.println("DEEP SLEEP MODE");
-
-      Serial.print("Voltage            : ");
-      Serial.print(voltage, 3);
-      Serial.println(" V");
-
-      Serial.print("Current            : ");
-      Serial.print(current_mA, 2);
-      Serial.println(" mA");
-
-      Serial.print("Power Consumption  : ");
-      Serial.print(power_mW, 2);
-      Serial.println(" mW");
-
-      Serial.println("--------------------------------");
-    }
-
-    if (now - modeStartTime >= DEEP_SLEEP_TIME) {
-
-      deepSleepMode = false;
-      modeStartTime = now;
-
-      Serial.println();
-      Serial.println("********************************");
-      Serial.println("DEEP SLEEP COMPLETED");
-      Serial.println("SWITCHING TO NORMAL ACTIVE MODE");
-      Serial.println("********************************");
-      Serial.println();
+    if (timeSincePacket >= NODE_SLEEP_TIMEOUT) {
+      nodeActive = false;
+    } else {
+      nodeActive = true;
     }
   }
+
+  if (previousState != nodeActive) {
+
+    Serial.println();
+    Serial.println("********************************");
+
+    if (nodeActive) {
+
+      Serial.println(
+        "NODE ACTIVE"
+      );
+
+      Serial.println(
+        "INA226 -> ACTUAL POWER"
+      );
+
+    } else {
+
+      Serial.println(
+        "NODE SLEEP / WAITING"
+      );
+
+      Serial.println(
+        "INA226 -> SLEEP POWER"
+      );
+    }
+
+    Serial.println("********************************");
+    Serial.println();
+  }
+
+  if (now - lastPowerDisplay < 1000) {
+    return;
+  }
+
+  lastPowerDisplay = now;
+
+  float busVoltage;
+  float actualVoltage;
+  float current_mA;
+  float power_mW;
+  String powerMode;
+
+  getPowerValues(
+    busVoltage,
+    actualVoltage,
+    current_mA,
+    power_mW,
+    powerMode
+  );
+
+  Serial.println("--------------------------------");
+
+  if (nodeActive) {
+
+    Serial.println("NODE ACTIVE");
+    Serial.println("ACTUAL INA226 POWER");
+
+  } else {
+
+    Serial.println("NODE SLEEP / WAITING");
+    Serial.println("THEORETICAL SLEEP POWER");
+  }
+
+  Serial.println("--------------------------------");
+
+  Serial.print(
+    "INA226 Bus Voltage : "
+  );
+
+  Serial.print(
+    busVoltage,
+    3
+  );
+
+  Serial.println(" V");
+
+  Serial.print(
+    "Voltage            : "
+  );
+
+  Serial.print(
+    actualVoltage,
+    3
+  );
+
+  Serial.println(" V");
+
+  Serial.print(
+    "Current            : "
+  );
+
+  Serial.print(
+    current_mA,
+    3
+  );
+
+  Serial.println(" mA");
+
+  Serial.print(
+    "Power Consumption  : "
+  );
+
+  Serial.print(
+    power_mW,
+    3
+  );
+
+  Serial.println(" mW");
+
+  Serial.print(
+    "Power Mode         : "
+  );
+
+  Serial.println(powerMode);
+
+  Serial.print(
+    "Time Since TX      : "
+  );
+
+  Serial.print(
+    timeSincePacket / 1000.0,
+    1
+  );
+
+  Serial.println(" s");
+
+  Serial.println("--------------------------------");
 }
 
 void receiveAndProcess() {
 
   String packet = "";
+
   packet.reserve(128);
 
   while (LoRa.available()) {
 
-    char c = (char)LoRa.read();
+    char c =
+      (char)LoRa.read();
 
     if (c >= 32 && c <= 126) {
       packet += c;
     }
   }
 
-  int rssi = LoRa.packetRssi();
-  float snr = LoRa.packetSnr();
+  int rssi =
+    LoRa.packetRssi();
+
+  float snr =
+    LoRa.packetSnr();
 
   packet.trim();
 
   Serial.println();
-  Serial.println("------------------------------------------------");
-  Serial.println("[+] LoRa Packet Received");
-  Serial.println("------------------------------------------------");
 
-  Serial.print("[-] Raw Data: ");
+  Serial.println(
+    "------------------------------------------------"
+  );
+
+  Serial.println(
+    "[+] LoRa Packet Received"
+  );
+
+  Serial.println(
+    "------------------------------------------------"
+  );
+
+  Serial.print(
+    "[-] Raw Data: "
+  );
+
   Serial.println(packet);
 
-  Serial.print("[-] Packet Size: ");
-  Serial.print(packet.length());
+  Serial.print(
+    "[-] Packet Size: "
+  );
+
+  Serial.print(
+    packet.length()
+  );
+
   Serial.println(" bytes");
 
-  Serial.print("[-] RSSI: ");
+  Serial.print(
+    "[-] RSSI: "
+  );
+
   Serial.print(rssi);
+
   Serial.println(" dBm");
 
-  Serial.print("[-] SNR: ");
-  Serial.print(snr, 2);
+  Serial.print(
+    "[-] SNR: "
+  );
+
+  Serial.print(
+    snr,
+    2
+  );
+
   Serial.println(" dB");
 
   if (packet.length() == 0) {
 
-    Serial.println("[!] Empty packet.");
+    Serial.println(
+      "[!] Empty packet."
+    );
 
     packetsFailed++;
 
     return;
   }
 
-  if (parseAndDisplay(packet, rssi, snr)) {
+  if (
+    parseAndDisplay(
+      packet,
+      rssi,
+      snr
+    )
+  ) {
 
     packetsReceived++;
+
+    unsigned long now =
+      millis();
+
+    if (lastPacketTime > 0) {
+
+      unsigned long interval =
+        now - lastPacketTime;
+
+      if (interval >= 1000) {
+        expectedUplinkInterval =
+          interval;
+      }
+    }
+
+    lastPacketTime = now;
+
+    nodeActive = true;
+
+    Serial.println();
+    Serial.println(
+      "[+] NODE STATE: ACTIVE"
+    );
+
+    Serial.println(
+      "[+] INA226: ACTUAL POWER MODE"
+    );
 
   } else {
 
@@ -448,11 +843,18 @@ void receiveAndProcess() {
 
   displayADRStats();
 
-  Serial.println("------------------------------------------------");
+  Serial.println(
+    "------------------------------------------------"
+  );
+
   Serial.println();
 }
 
-bool parseAndDisplay(String data, int rssi, float snr) {
+bool parseAndDisplay(
+  String data,
+  int rssi,
+  float snr
+) {
 
   int nodeId;
   int bootCount;
@@ -466,153 +868,302 @@ bool parseAndDisplay(String data, int rssi, float snr) {
   float soilMoisture;
   float ec;
 
-  int idx1  = data.indexOf(',');
-  int idx2  = data.indexOf(',', idx1  + 1);
-  int idx3  = data.indexOf(',', idx2  + 1);
-  int idx4  = data.indexOf(',', idx3  + 1);
-  int idx5  = data.indexOf(',', idx4  + 1);
-  int idx6  = data.indexOf(',', idx5  + 1);
-  int idx7  = data.indexOf(',', idx6  + 1);
-  int idx8  = data.indexOf(',', idx7  + 1);
-  int idx9  = data.indexOf(',', idx8  + 1);
-  int idx10 = data.indexOf(',', idx9  + 1);
+  int idx1 = data.indexOf(',');
+  int idx2 = data.indexOf(',', idx1 + 1);
+  int idx3 = data.indexOf(',', idx2 + 1);
+  int idx4 = data.indexOf(',', idx3 + 1);
+  int idx5 = data.indexOf(',', idx4 + 1);
+  int idx6 = data.indexOf(',', idx5 + 1);
+  int idx7 = data.indexOf(',', idx6 + 1);
+  int idx8 = data.indexOf(',', idx7 + 1);
+  int idx9 = data.indexOf(',', idx8 + 1);
+  int idx10 = data.indexOf(',', idx9 + 1);
   int idx11 = data.indexOf(',', idx10 + 1);
   int idx12 = data.indexOf(',', idx11 + 1);
 
-  if (idx1 < 0 || idx2 < 0 || idx3 < 0 || idx4 < 0 ||
-      idx5 < 0 || idx6 < 0 || idx7 < 0 || idx8 < 0 ||
-      idx9 < 0 || idx10 < 0 || idx11 < 0 || idx12 < 0) {
+  if (
+    idx1 < 0 ||
+    idx2 < 0 ||
+    idx3 < 0 ||
+    idx4 < 0 ||
+    idx5 < 0 ||
+    idx6 < 0 ||
+    idx7 < 0 ||
+    idx8 < 0 ||
+    idx9 < 0 ||
+    idx10 < 0 ||
+    idx11 < 0 ||
+    idx12 < 0
+  ) {
 
-    Serial.println("[!] Parse Error!");
-    Serial.println("[!] Expected: NodeID,Temp,Hum,N,P,K,NpkTemp,SoilMoisture,EC,Boot,TX,SF,Power");
+    Serial.println(
+      "[!] Parse Error!"
+    );
 
-    return false;
-  }
-
-  nodeId         = data.substring(0,        idx1).toInt();
-  temperature    = data.substring(idx1 + 1, idx2).toFloat();
-  humidity       = data.substring(idx2 + 1, idx3).toFloat();
-
-  int nValue     = data.substring(idx3 + 1, idx4).toInt();
-  int pValue     = data.substring(idx4 + 1, idx5).toInt();
-  int kValue     = data.substring(idx5 + 1, idx6).toInt();
-
-  npkTemperature = data.substring(idx6 + 1, idx7).toFloat();
-  soilMoisture   = data.substring(idx7 + 1, idx8).toFloat();
-  ec             = data.substring(idx8 + 1, idx9).toFloat();
-
-  bootCount      = data.substring(idx9  + 1, idx10).toInt();
-  txCount        = data.substring(idx10 + 1, idx11).toInt();
-  sf             = data.substring(idx11 + 1, idx12).toInt();
-  txPower        = data.substring(idx12 + 1).toInt();
-
-  if (temperature < -40.0 || temperature > 80.0) {
-
-    Serial.print("[!] Invalid temperature: ");
-    Serial.println(temperature);
+    Serial.println(
+      "[!] Expected: NodeID,Temp,Hum,N,P,K,NpkTemp,SoilMoisture,EC,Boot,TX,SF,Power"
+    );
 
     return false;
   }
 
-  if (humidity < 0.0 || humidity > 100.0) {
+  nodeId =
+    data.substring(
+      0,
+      idx1
+    ).toInt();
 
-    Serial.print("[!] Invalid humidity: ");
-    Serial.println(humidity);
+  temperature =
+    data.substring(
+      idx1 + 1,
+      idx2
+    ).toFloat();
+
+  humidity =
+    data.substring(
+      idx2 + 1,
+      idx3
+    ).toFloat();
+
+  int nValue =
+    data.substring(
+      idx3 + 1,
+      idx4
+    ).toInt();
+
+  int pValue =
+    data.substring(
+      idx4 + 1,
+      idx5
+    ).toInt();
+
+  int kValue =
+    data.substring(
+      idx5 + 1,
+      idx6
+    ).toInt();
+
+  npkTemperature =
+    data.substring(
+      idx6 + 1,
+      idx7
+    ).toFloat();
+
+  soilMoisture =
+    data.substring(
+      idx7 + 1,
+      idx8
+    ).toFloat();
+
+  ec =
+    data.substring(
+      idx8 + 1,
+      idx9
+    ).toFloat();
+
+  bootCount =
+    data.substring(
+      idx9 + 1,
+      idx10
+    ).toInt();
+
+  txCount =
+    data.substring(
+      idx10 + 1,
+      idx11
+    ).toInt();
+
+  sf =
+    data.substring(
+      idx11 + 1,
+      idx12
+    ).toInt();
+
+  txPower =
+    data.substring(
+      idx12 + 1
+    ).toInt();
+
+  if (
+    temperature < -40.0 ||
+    temperature > 80.0
+  ) {
+
+    Serial.print(
+      "[!] Invalid temperature: "
+    );
+
+    Serial.println(
+      temperature
+    );
 
     return false;
   }
 
-  if (sf < 7 || sf > 12) {
+  if (
+    humidity < 0.0 ||
+    humidity > 100.0
+  ) {
 
-    Serial.print("[!] Invalid spreading factor: SF");
+    Serial.print(
+      "[!] Invalid humidity: "
+    );
+
+    Serial.println(
+      humidity
+    );
+
+    return false;
+  }
+
+  if (
+    sf < 7 ||
+    sf > 12
+  ) {
+
+    Serial.print(
+      "[!] Invalid spreading factor: SF"
+    );
+
     Serial.println(sf);
 
     return false;
   }
 
   Serial.println();
-  Serial.println("[*] SENSOR DATA");
 
-  Serial.print("[-] Node ID      : ");
+  Serial.println(
+    "[*] SENSOR DATA"
+  );
+
+  Serial.print(
+    "[-] Node ID      : "
+  );
+
   Serial.println(nodeId);
 
-  Serial.print("[-] Temperature  : ");
-  Serial.print(temperature, 2);
+  Serial.print(
+    "[-] Temperature  : "
+  );
+
+  Serial.print(
+    temperature,
+    2
+  );
+
   Serial.println(" C");
 
-  Serial.print("[-] Humidity     : ");
-  Serial.print(humidity, 2);
+  Serial.print(
+    "[-] Humidity     : "
+  );
+
+  Serial.print(
+    humidity,
+    2
+  );
+
   Serial.println(" %");
 
-  Serial.print("[-] Nitrogen     : ");
+  Serial.print(
+    "[-] Nitrogen     : "
+  );
+
   Serial.print(nValue);
+
   Serial.println(" ppm");
 
-  Serial.print("[-] Phosphorus   : ");
+  Serial.print(
+    "[-] Phosphorus   : "
+  );
+
   Serial.print(pValue);
+
   Serial.println(" ppm");
 
-  Serial.print("[-] Potassium    : ");
+  Serial.print(
+    "[-] Potassium    : "
+  );
+
   Serial.print(kValue);
+
   Serial.println(" ppm");
 
-  Serial.print("[-] NPK Temp     : ");
-  Serial.print(npkTemperature, 1);
+  Serial.print(
+    "[-] NPK Temp     : "
+  );
+
+  Serial.print(
+    npkTemperature,
+    1
+  );
+
   Serial.println(" C");
 
-  Serial.print("[-] Soil Moisture: ");
-  Serial.print(soilMoisture, 1);
+  Serial.print(
+    "[-] Soil Moisture: "
+  );
+
+  Serial.print(
+    soilMoisture,
+    1
+  );
+
   Serial.println(" %");
 
-  Serial.print("[-] EC           : ");
-  Serial.print(ec, 2);
+  Serial.print(
+    "[-] EC           : "
+  );
+
+  Serial.print(
+    ec,
+    2
+  );
+
   Serial.println(" uS/cm");
 
-  Serial.print("[-] Boot Count   : ");
-  Serial.println(bootCount);
+  Serial.print(
+    "[-] Boot Count   : "
+  );
 
-  Serial.print("[-] TX Count     : ");
-  Serial.println(txCount);
+  Serial.println(
+    bootCount
+  );
 
-  Serial.print("[-] SF           : SF");
+  Serial.print(
+    "[-] TX Count     : "
+  );
+
+  Serial.println(
+    txCount
+  );
+
+  Serial.print(
+    "[-] SF           : SF"
+  );
+
   Serial.println(sf);
 
-  Serial.print("[-] TX Power     : ");
+  Serial.print(
+    "[-] TX Power     : "
+  );
+
   Serial.print(txPower);
+
   Serial.println(" dBm");
 
-  Serial.println();
-  Serial.println("[*] INA226 POWER DATA");
-
-  Serial.print("[-] Bus Voltage  : ");
-  Serial.print(inaBusVoltage, 3);
-  Serial.println(" V");
-
-  Serial.print("[-] Voltage      : ");
-  Serial.print(inaActualVoltage, 3);
-  Serial.println(" V");
-
-  Serial.print("[-] Current      : ");
-  Serial.print(inaCurrent_mA, 3);
-  Serial.println(" mA");
-
-  Serial.print("[-] Power        : ");
-  Serial.print(inaPower_mW, 3);
-  Serial.println(" mW");
-
-  Serial.print("[-] Mode         : ");
-
-  if (deepSleepMode) {
-    Serial.println("DEEP SLEEP");
-  } else {
-    Serial.println("NORMAL ACTIVE");
-  }
-
-  displayADRInfo(sf, txPower, rssi, snr);
+  displayADRInfo(
+    sf,
+    txPower,
+    rssi,
+    snr
+  );
 
   updateSFStats(sf);
 
-  analyzeEnergy(temperature, humidity);
+  analyzeEnergy(
+    temperature,
+    humidity
+  );
 
   float airTime = 41.0;
 
@@ -643,7 +1194,44 @@ bool parseAndDisplay(String data, int rssi, float snr) {
       break;
   }
 
-  packetsSent = txCount;
+  packetsSent =
+    txCount;
+
+  float busVoltage = 0.0;
+  float actualVoltage = 0.0;
+  float current_mA = 0.0;
+  float power_mW = 0.0;
+  String powerMode = "INA226_ERROR";
+
+  getPowerValues(
+    busVoltage,
+    actualVoltage,
+    current_mA,
+    power_mW,
+    powerMode
+  );
+
+  Serial.println();
+  Serial.println("[*] POWER DATA");
+
+  Serial.print("[-] Bus Voltage : ");
+  Serial.print(busVoltage, 3);
+  Serial.println(" V");
+
+  Serial.print("[-] Voltage     : ");
+  Serial.print(actualVoltage, 3);
+  Serial.println(" V");
+
+  Serial.print("[-] Current     : ");
+  Serial.print(current_mA, 3);
+  Serial.println(" mA");
+
+  Serial.print("[-] Power       : ");
+  Serial.print(power_mW, 3);
+  Serial.println(" mW");
+
+  Serial.print("[-] Power Mode  : ");
+  Serial.println(powerMode);
 
   if (Firebase.ready()) {
 
@@ -652,27 +1240,39 @@ bool parseAndDisplay(String data, int rssi, float snr) {
     if (packetsSent > 0) {
 
       pdr =
-        ((float)packetsReceived /
-        (float)packetsSent) * 100.0;
+        (
+          (float)packetsReceived /
+          (float)packetsSent
+        ) *
+        100.0;
     }
 
-    float packetLoss = 100.0 - pdr;
+    float packetLoss =
+      100.0 - pdr;
 
-    unsigned long currentMillis = millis();
+    unsigned long currentMillis =
+      millis();
 
-    static unsigned long lastReceiveMillis = 0;
+    static unsigned long lastReceiveMillis =
+      0;
 
     float uplinkInterval = 0.0;
 
     if (lastReceiveMillis > 0) {
 
       uplinkInterval =
-        (currentMillis - lastReceiveMillis) / 1000.0;
+        (
+          currentMillis -
+          lastReceiveMillis
+        ) /
+        1000.0;
     }
 
-    lastReceiveMillis = currentMillis;
+    lastReceiveMillis =
+      currentMillis;
 
-    String linkReliability = "Low";
+    String linkReliability =
+      "Low";
 
     if (pdr > 90.0)
       linkReliability = "High";
@@ -680,9 +1280,11 @@ bool parseAndDisplay(String data, int rssi, float snr) {
     else if (pdr > 70.0)
       linkReliability = "Medium";
 
-    String lastSeenStr = getISOTimestamp();
+    String lastSeenStr =
+      getISOTimestamp();
 
-    String gatewayMac = WiFi.macAddress();
+    String gatewayMac =
+      WiFi.macAddress();
 
     FirebaseJson rtdbJson;
 
@@ -729,150 +1331,323 @@ bool parseAndDisplay(String data, int rssi, float snr) {
     rtdbJson.set("preambleLength", 8);
     rtdbJson.set("syncWord", "0x12");
 
-    rtdbJson.set("inaBusVoltage", inaBusVoltage);
-    rtdbJson.set("inaVoltage", inaActualVoltage);
-    rtdbJson.set("inaCurrent", inaCurrent_mA);
-    rtdbJson.set("inaPower", inaPower_mW);
+    rtdbJson.set("busVoltage", busVoltage);
+    rtdbJson.set("voltage", actualVoltage);
+    rtdbJson.set("current", current_mA);
+    rtdbJson.set("power", power_mW);
+    rtdbJson.set("powerMode", powerMode);
 
-    if (deepSleepMode) {
-      rtdbJson.set("powerMonitorMode", "DEEP SLEEP");
-    } else {
-      rtdbJson.set("powerMonitorMode", "NORMAL ACTIVE");
-    }
+    Serial.print(
+      "[*] RTDB: "
+    );
 
-    rtdbJson.set("inaLastUpdate", getISOTimestamp());
-
-    Serial.print("[*] RTDB: ");
-
-    if (Firebase.RTDB.setJSON(
-          &fbdo,
-          "/gateway/live",
-          &rtdbJson)) {
+    if (
+      Firebase.RTDB.setJSON(
+        &fbdo,
+        "/gateway/live",
+        &rtdbJson
+      )
+    ) {
 
       Serial.println("OK");
 
     } else {
 
       Serial.print("FAIL - ");
-      Serial.println(fbdo.errorReason());
+      Serial.println(
+        fbdo.errorReason()
+      );
     }
 
     FirebaseJson fsDoc;
 
-    fsDoc.set("fields/temperature/doubleValue", temperature);
-    fsDoc.set("fields/humidity/doubleValue", humidity);
-
-    fsDoc.set("fields/nitrogen/integerValue", nValue);
-    fsDoc.set("fields/phosphorus/integerValue", pValue);
-    fsDoc.set("fields/potassium/integerValue", kValue);
-
-    fsDoc.set("fields/npkTemperature/doubleValue", npkTemperature);
-    fsDoc.set("fields/soilMoisture/doubleValue", soilMoisture);
-    fsDoc.set("fields/ec/doubleValue", ec);
-
-    fsDoc.set("fields/packetDeliveryRatio/doubleValue", pdr);
-    fsDoc.set("fields/totalPacketsSent/integerValue", (int)packetsSent);
-    fsDoc.set("fields/totalPacketsReceived/integerValue", (int)packetsReceived);
-    fsDoc.set("fields/packetLossRate/doubleValue", packetLoss);
-
-    fsDoc.set("fields/lastHandshake/stringValue", lastSeenStr);
-    fsDoc.set("fields/transmissionTime/doubleValue", airTime);
-    fsDoc.set("fields/uplinkInterval/doubleValue", uplinkInterval);
-    fsDoc.set("fields/payloadDataLength/integerValue", data.length());
-
-    fsDoc.set("fields/linkReliability/stringValue", linkReliability);
-    fsDoc.set("fields/queueLatency/integerValue", 15);
-
-    fsDoc.set("fields/transmitterNodeId/integerValue", nodeId);
-    fsDoc.set("fields/receiverGatewayId/stringValue", gatewayMac);
-
-    fsDoc.set("fields/loraModule/stringValue", "SX1278 (RA-02)");
-    fsDoc.set("fields/microcontroller/stringValue", "ESP32");
-    fsDoc.set("fields/networkProtocol/stringValue", "LoRa (P2P)");
-    fsDoc.set("fields/hardwareMac/stringValue", "SENSOR_NODE_DEFAULT");
-    fsDoc.set("fields/firmwareVersion/stringValue", "v1.1.0");
-    fsDoc.set("fields/powerSource/stringValue", "Battery/USB");
-
-    fsDoc.set("fields/rssi/integerValue", rssi);
-    fsDoc.set("fields/snr/doubleValue", snr);
-
-    fsDoc.set("fields/adrLinkQualityControl/stringValue", "Enabled");
-    fsDoc.set("fields/frequencyBand/stringValue", "433 MHz");
-    fsDoc.set("fields/spreadingFactor/integerValue", sf);
-    fsDoc.set("fields/signalBandwidth/stringValue", "125 kHz");
-    fsDoc.set("fields/txPowerOutput/integerValue", txPower);
-    fsDoc.set("fields/codingRate/stringValue", "4/5");
-    fsDoc.set("fields/preambleLength/integerValue", 8);
-    fsDoc.set("fields/syncWord/stringValue", "0x12");
-
-    fsDoc.set("fields/inaBusVoltage/doubleValue", inaBusVoltage);
-    fsDoc.set("fields/inaVoltage/doubleValue", inaActualVoltage);
-    fsDoc.set("fields/inaCurrent/doubleValue", inaCurrent_mA);
-    fsDoc.set("fields/inaPower/doubleValue", inaPower_mW);
-
-    if (deepSleepMode) {
-      fsDoc.set(
-        "fields/powerMonitorMode/stringValue",
-        "DEEP SLEEP"
-      );
-    } else {
-      fsDoc.set(
-        "fields/powerMonitorMode/stringValue",
-        "NORMAL ACTIVE"
-      );
-    }
-
     fsDoc.set(
-      "fields/inaLastUpdate/stringValue",
-      getISOTimestamp()
+      "fields/temperature/doubleValue",
+      temperature
     );
 
-    Serial.print("[*] Firestore: ");
+    fsDoc.set(
+      "fields/humidity/doubleValue",
+      humidity
+    );
 
-    if (Firebase.Firestore.createDocument(
-          &fbdo,
-          PROJECT_ID,
-          "",
-          "sensor_data",
-          fsDoc.raw())) {
+    fsDoc.set(
+      "fields/nitrogen/integerValue",
+      nValue
+    );
+
+    fsDoc.set(
+      "fields/phosphorus/integerValue",
+      pValue
+    );
+
+    fsDoc.set(
+      "fields/potassium/integerValue",
+      kValue
+    );
+
+    fsDoc.set(
+      "fields/npkTemperature/doubleValue",
+      npkTemperature
+    );
+
+    fsDoc.set(
+      "fields/soilMoisture/doubleValue",
+      soilMoisture
+    );
+
+    fsDoc.set(
+      "fields/ec/doubleValue",
+      ec
+    );
+
+    fsDoc.set(
+      "fields/packetDeliveryRatio/doubleValue",
+      pdr
+    );
+
+    fsDoc.set(
+      "fields/totalPacketsSent/integerValue",
+      (int)packetsSent
+    );
+
+    fsDoc.set(
+      "fields/totalPacketsReceived/integerValue",
+      (int)packetsReceived
+    );
+
+    fsDoc.set(
+      "fields/packetLossRate/doubleValue",
+      packetLoss
+    );
+
+    fsDoc.set(
+      "fields/lastHandshake/stringValue",
+      lastSeenStr
+    );
+
+    fsDoc.set(
+      "fields/transmissionTime/doubleValue",
+      airTime
+    );
+
+    fsDoc.set(
+      "fields/uplinkInterval/doubleValue",
+      uplinkInterval
+    );
+
+    fsDoc.set(
+      "fields/payloadDataLength/integerValue",
+      data.length()
+    );
+
+    fsDoc.set(
+      "fields/linkReliability/stringValue",
+      linkReliability
+    );
+
+    fsDoc.set(
+      "fields/queueLatency/integerValue",
+      15
+    );
+
+    fsDoc.set(
+      "fields/transmitterNodeId/integerValue",
+      nodeId
+    );
+
+    fsDoc.set(
+      "fields/receiverGatewayId/stringValue",
+      gatewayMac
+    );
+
+    fsDoc.set(
+      "fields/loraModule/stringValue",
+      "SX1278 (RA-02)"
+    );
+
+    fsDoc.set(
+      "fields/microcontroller/stringValue",
+      "ESP32"
+    );
+
+    fsDoc.set(
+      "fields/networkProtocol/stringValue",
+      "LoRa (P2P)"
+    );
+
+    fsDoc.set(
+      "fields/hardwareMac/stringValue",
+      "SENSOR_NODE_DEFAULT"
+    );
+
+    fsDoc.set(
+      "fields/firmwareVersion/stringValue",
+      "v1.1.0"
+    );
+
+    fsDoc.set(
+      "fields/powerSource/stringValue",
+      "Battery/USB"
+    );
+
+    fsDoc.set(
+      "fields/rssi/integerValue",
+      rssi
+    );
+
+    fsDoc.set(
+      "fields/snr/doubleValue",
+      snr
+    );
+
+    fsDoc.set(
+      "fields/adrLinkQualityControl/stringValue",
+      "Enabled"
+    );
+
+    fsDoc.set(
+      "fields/frequencyBand/stringValue",
+      "433 MHz"
+    );
+
+    fsDoc.set(
+      "fields/spreadingFactor/integerValue",
+      sf
+    );
+
+    fsDoc.set(
+      "fields/signalBandwidth/stringValue",
+      "125 kHz"
+    );
+
+    fsDoc.set(
+      "fields/txPowerOutput/integerValue",
+      txPower
+    );
+
+    fsDoc.set(
+      "fields/codingRate/stringValue",
+      "4/5"
+    );
+
+    fsDoc.set(
+      "fields/preambleLength/integerValue",
+      8
+    );
+
+    fsDoc.set(
+      "fields/syncWord/stringValue",
+      "0x12"
+    );
+
+    fsDoc.set(
+      "fields/busVoltage/doubleValue",
+      busVoltage
+    );
+
+    fsDoc.set(
+      "fields/voltage/doubleValue",
+      actualVoltage
+    );
+
+    fsDoc.set(
+      "fields/current/doubleValue",
+      current_mA
+    );
+
+    fsDoc.set(
+      "fields/power/doubleValue",
+      power_mW
+    );
+
+    fsDoc.set(
+      "fields/powerMode/stringValue",
+      powerMode
+    );
+
+    Serial.print(
+      "[*] Firestore: "
+    );
+
+    if (
+      Firebase.Firestore.createDocument(
+        &fbdo,
+        PROJECT_ID,
+        "",
+        "sensor_data",
+        fsDoc.raw()
+      )
+    ) {
 
       Serial.println("OK");
 
     } else {
 
       Serial.print("FAIL - ");
-      Serial.println(fbdo.errorReason());
+      Serial.println(
+        fbdo.errorReason()
+      );
     }
 
   } else {
 
-    Serial.println("[!] Firebase not ready - skipping write.");
+    Serial.println(
+      "[!] Firebase not ready - skipping write."
+    );
   }
 
   return true;
 }
 
-void displayADRInfo(int sf, int txPower, int rssi, float snr) {
+void displayADRInfo(
+  int sf,
+  int txPower,
+  int rssi,
+  float snr
+) {
 
   Serial.println();
-  Serial.println("[*] ADR STATUS");
+  Serial.println(
+    "[*] ADR STATUS"
+  );
 
-  Serial.print("[-] Current SF : SF");
+  Serial.print(
+    "[-] Current SF : SF"
+  );
+
   Serial.println(sf);
 
-  Serial.print("[-] TX Power   : ");
+  Serial.print(
+    "[-] TX Power   : "
+  );
+
   Serial.print(txPower);
+
   Serial.println(" dBm");
 
-  Serial.print("[-] RSSI       : ");
+  Serial.print(
+    "[-] RSSI       : "
+  );
+
   Serial.print(rssi);
+
   Serial.println(" dBm");
 
-  Serial.print("[-] SNR        : ");
-  Serial.print(snr, 2);
+  Serial.print(
+    "[-] SNR        : "
+  );
+
+  Serial.print(
+    snr,
+    2
+  );
+
   Serial.println(" dB");
 
-  Serial.print("[-] Signal     : ");
+  Serial.print(
+    "[-] Signal     : "
+  );
 
   if (rssi > RSSI_EXCELLENT)
     Serial.println("Excellent");
@@ -886,13 +1661,20 @@ void displayADRInfo(int sf, int txPower, int rssi, float snr) {
   else
     Serial.println("Very Weak");
 
-  int linkMargin = rssi + 157;
+  int linkMargin =
+    rssi + 157;
 
-  Serial.print("[-] Link Margin: ");
+  Serial.print(
+    "[-] Link Margin: "
+  );
+
   Serial.print(linkMargin);
+
   Serial.println(" dB");
 
-  Serial.print("[-] Suggested  : ");
+  Serial.print(
+    "[-] Suggested  : "
+  );
 
   if (rssi > RSSI_EXCELLENT)
     Serial.println("SF7 / 14 dBm");
@@ -939,15 +1721,27 @@ void displayADRInfo(int sf, int txPower, int rssi, float snr) {
       break;
   }
 
-  Serial.print("[-] Air Time   : ");
+  Serial.print(
+    "[-] Air Time   : "
+  );
+
   Serial.print(airTime);
+
   Serial.println(" ms");
 
   float dutyCycle =
-    (airTime / 3600000.0) * 100.0;
+    (airTime / 3600000.0) *
+    100.0;
 
-  Serial.print("[-] Duty Impact: ");
-  Serial.print(dutyCycle, 4);
+  Serial.print(
+    "[-] Duty Impact: "
+  );
+
+  Serial.print(
+    dutyCycle,
+    4
+  );
+
   Serial.println(" %");
 }
 
@@ -987,111 +1781,222 @@ void updateSFStats(int sf) {
 void displayADRStats() {
 
   Serial.println();
-  Serial.println("[*] ADR STATISTICS");
+  Serial.println(
+    "[*] ADR STATISTICS"
+  );
 
-  Serial.print("[-] RX Packets : ");
-  Serial.println(packetsReceived);
+  Serial.print(
+    "[-] RX Packets : "
+  );
 
-  Serial.print("[-] Failed     : ");
-  Serial.println(packetsFailed);
+  Serial.println(
+    packetsReceived
+  );
 
-  Serial.print("[-] SF7        : ");
-  Serial.println(sf7Count);
+  Serial.print(
+    "[-] Failed     : "
+  );
 
-  Serial.print("[-] SF8        : ");
-  Serial.println(sf8Count);
+  Serial.println(
+    packetsFailed
+  );
 
-  Serial.print("[-] SF9        : ");
-  Serial.println(sf9Count);
+  Serial.print(
+    "[-] SF7        : "
+  );
 
-  Serial.print("[-] SF10       : ");
-  Serial.println(sf10Count);
+  Serial.println(
+    sf7Count
+  );
 
-  Serial.print("[-] SF11       : ");
-  Serial.println(sf11Count);
+  Serial.print(
+    "[-] SF8        : "
+  );
 
-  Serial.print("[-] SF12       : ");
-  Serial.println(sf12Count);
+  Serial.println(
+    sf8Count
+  );
+
+  Serial.print(
+    "[-] SF9        : "
+  );
+
+  Serial.println(
+    sf9Count
+  );
+
+  Serial.print(
+    "[-] SF10       : "
+  );
+
+  Serial.println(
+    sf10Count
+  );
+
+  Serial.print(
+    "[-] SF11       : "
+  );
+
+  Serial.println(
+    sf11Count
+  );
+
+  Serial.print(
+    "[-] SF12       : "
+  );
+
+  Serial.println(
+    sf12Count
+  );
 
   if (packetsReceived > 0) {
 
     float avgSaving =
-      (sf7Count * 30.0 +
-       sf8Count * 25.0 +
-       sf9Count * 15.0 +
-       sf10Count * 5.0) /
+      (
+        sf7Count * 30.0 +
+        sf8Count * 25.0 +
+        sf9Count * 15.0 +
+        sf10Count * 5.0
+      ) /
       packetsReceived;
 
-    Serial.print("[-] Est. Saving: ");
-    Serial.print(avgSaving, 1);
+    Serial.print(
+      "[-] Est. Saving: "
+    );
+
+    Serial.print(
+      avgSaving,
+      1
+    );
+
     Serial.println(" %");
   }
 }
 
-void analyzeEnergy(float temp, float humidity) {
+void analyzeEnergy(
+  float temp,
+  float humidity
+) {
 
   Serial.println();
-  Serial.println("[*] ENERGY ANALYSIS");
+  Serial.println(
+    "[*] ENERGY ANALYSIS"
+  );
 
   bool action = false;
 
   if (temp > TEMP_HIGH) {
 
-    Serial.print("[!] Temperature HIGH: ");
-    Serial.print(temp, 2);
+    Serial.print(
+      "[!] Temperature HIGH: "
+    );
+
+    Serial.print(
+      temp,
+      2
+    );
+
     Serial.println(" C");
 
-    Serial.println("    -> Cooling required");
+    Serial.println(
+      "    -> Cooling required"
+    );
 
     action = true;
 
   } else if (temp < TEMP_LOW) {
 
-    Serial.print("[!] Temperature LOW: ");
-    Serial.print(temp, 2);
+    Serial.print(
+      "[!] Temperature LOW: "
+    );
+
+    Serial.print(
+      temp,
+      2
+    );
+
     Serial.println(" C");
 
-    Serial.println("    -> Heating required");
+    Serial.println(
+      "    -> Heating required"
+    );
 
     action = true;
 
   } else {
 
-    Serial.print("[+] Temperature OK: ");
-    Serial.print(temp, 2);
+    Serial.print(
+      "[+] Temperature OK: "
+    );
+
+    Serial.print(
+      temp,
+      2
+    );
+
     Serial.println(" C");
   }
 
   if (humidity > HUMIDITY_HIGH) {
 
-    Serial.print("[!] Humidity HIGH: ");
-    Serial.print(humidity, 2);
+    Serial.print(
+      "[!] Humidity HIGH: "
+    );
+
+    Serial.print(
+      humidity,
+      2
+    );
+
     Serial.println(" %");
 
-    Serial.println("    -> Dehumidification required");
+    Serial.println(
+      "    -> Dehumidification required"
+    );
 
     action = true;
 
   } else if (humidity < HUMIDITY_LOW) {
 
-    Serial.print("[!] Humidity LOW: ");
-    Serial.print(humidity, 2);
+    Serial.print(
+      "[!] Humidity LOW: "
+    );
+
+    Serial.print(
+      humidity,
+      2
+    );
+
     Serial.println(" %");
 
-    Serial.println("    -> Humidification required");
+    Serial.println(
+      "    -> Humidification required"
+    );
 
     action = true;
 
   } else {
 
-    Serial.print("[+] Humidity OK: ");
-    Serial.print(humidity, 2);
+    Serial.print(
+      "[+] Humidity OK: "
+    );
+
+    Serial.print(
+      humidity,
+      2
+    );
+
     Serial.println(" %");
   }
 
   if (!action) {
 
-    Serial.println("[+] All systems normal.");
-    Serial.println("[+] Maximum energy saving mode.");
+    Serial.println(
+      "[+] All systems normal."
+    );
+
+    Serial.println(
+      "[+] Maximum energy saving mode."
+    );
   }
 }
