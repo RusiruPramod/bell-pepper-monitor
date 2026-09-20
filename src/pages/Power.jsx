@@ -19,7 +19,7 @@ function fmt(val, d = 2) {
 export default function Power() {
   const [activeData, setActiveData]   = useState(null); // last ACTIVE snapshot
   const [sleepData, setSleepData]     = useState(null); // last SLEEP snapshot
-  const [currentMode, setCurrentMode] = useState(null); // live powerMode
+  const [currentMode, setCurrentMode] = useState(null); // live powerMode from Firebase
   const [loading, setLoading]         = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
 
@@ -92,6 +92,16 @@ export default function Power() {
 
   const powerMode = currentMode ?? "—";
 
+  // displayMode: Firebase live data → default ACTIVE when not yet received
+  // This drives BOTH the top status badge AND the right EnergyTank
+  const displayMode = currentMode ?? "ACTIVE";
+
+  // Right tank config — switches instantly when displayMode changes
+  const rightTank =
+    displayMode === "SLEEP"
+      ? { label: "Deep Sleep Mode", targetPercent: 1.1,  color: "low-green"       }
+      : { label: "Normal Mode",     targetPercent: 100,  color: "usage-gradient"  };
+
   // ─── Efficiency: always Sleep vs Active ────────────────────────────────
   const efficiencyPct =
     slp.power > 0 && act.power > 0
@@ -142,15 +152,18 @@ export default function Power() {
                 Updated {lastUpdated.toLocaleTimeString()}
               </span>
             )}
-            {currentMode && (
+            {/* Status badge — synced to Firebase live mode OR EnergyTank cycle animation */}
+            {displayMode && (
               <span
-                className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                  powerMode === "SLEEP"
+                key={displayMode}          /* key forces re-mount → CSS fade-in on change */
+                className={`text-xs font-bold px-3 py-1 rounded-full border transition-all duration-500 animate-fadeIn ${
+                  displayMode === "SLEEP"
                     ? "bg-blue-50 border-blue-200 text-blue-700"
                     : "bg-amber-50 border-amber-200 text-amber-700"
                 }`}
+                title={currentMode ? "Live Firebase reading" : "Synced with Energy Draw Cycle animation"}
               >
-                {powerMode === "SLEEP" ? "😴 Deep Sleep" : `⚡ ${powerMode}`}
+                {displayMode === "SLEEP" ? "😴 Deep Sleep" : `⚡ ${displayMode}`}
               </span>
             )}
           </>
@@ -220,17 +233,28 @@ export default function Power() {
           </div>
         </Card>
 
-        {/* Live Energy Draw */}
+        {/* Live Energy Draw — right tank synced to status badge */}
         <Card className="lg:col-span-5 p-6 flex flex-col justify-between">
           <div>
             <h2 className="text-base font-bold text-gray-800 mb-6">Live Energy Draw Cycle</h2>
             <div className="flex justify-center items-start gap-8 sm:gap-12">
+              {/* Left: always shows Normal reference at 100% */}
               <EnergyTank label="Normal Usage" targetPercent={100} color="high-green" />
-              <EnergyTank cycleMode={true} />
+
+              {/* Right: driven by status badge — re-animates on every mode switch */}
+              <EnergyTank
+                key={displayMode}            /* re-mount = re-animate from 0 on switch */
+                label={rightTank.label}
+                targetPercent={rightTank.targetPercent}
+                color={rightTank.color}
+              />
             </div>
           </div>
           <p className="text-xs text-gray-400 text-center mt-6">
-            8s cycle: Ramping up to 100%, then transitioning to a fixed {deepSleepPct} deep sleep power draw
+            Right tank reflects live status:{" "}
+            <span className="font-semibold">
+              {displayMode === "SLEEP" ? `😴 Deep Sleep (${deepSleepPct})` : "⚡ Normal Active Mode (100%)"}
+            </span>
           </p>
         </Card>
       </div>

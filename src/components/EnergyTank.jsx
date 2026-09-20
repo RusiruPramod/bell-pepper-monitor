@@ -5,11 +5,18 @@ export default function EnergyTank({
   targetPercent = 100,
   color = "high-green",
   cycleMode = false,
+  onModeChange,          // ("ACTIVE" | "SLEEP") => void
 }) {
   const [fill, setFill] = useState(0);
   const [modeLabel, setModeLabel] = useState(label || "Normal Mode");
   const [activeColor, setActiveColor] = useState(color);
   const intervalRef = useRef(null);
+  const lastEmittedMode = useRef(null);   // track to avoid duplicate fires
+
+  // Keep activeColor in sync when color prop changes (status-driven non-cycleMode)
+  useEffect(() => {
+    if (!cycleMode) setActiveColor(color);
+  }, [color, cycleMode]);
 
   useEffect(() => {
     if (cycleMode) {
@@ -24,22 +31,38 @@ export default function EnergyTank({
           setFill(Math.min(100, (elapsed / 1000) * 100));
           setModeLabel("Normal Mode");
           setActiveColor("usage-gradient");
+          if (lastEmittedMode.current !== "ACTIVE") {
+            lastEmittedMode.current = "ACTIVE";
+            onModeChange?.("ACTIVE");
+          }
         } else if (elapsed < 3000) {
           // 1s to 3s: Hold at 100%
           setFill(100);
           setModeLabel("Normal Mode");
           setActiveColor("usage-gradient");
+          if (lastEmittedMode.current !== "ACTIVE") {
+            lastEmittedMode.current = "ACTIVE";
+            onModeChange?.("ACTIVE");
+          }
         } else if (elapsed < 5000) {
           // 3s to 5s: Slowly level down to 1.1%
           const dropProgress = (elapsed - 3000) / 2000;
           setFill(100 - dropProgress * 98.9);
           setModeLabel("Deep Sleep Mode Start");
           setActiveColor("usage-gradient");
+          if (lastEmittedMode.current !== "ACTIVE") {
+            lastEmittedMode.current = "ACTIVE";
+            onModeChange?.("ACTIVE");
+          }
         } else {
           // 5s to 8s: Hold fixed at exactly 1.1%
           setFill(1.1);
           setModeLabel("Deep Sleep Mode");
           setActiveColor("low-green");
+          if (lastEmittedMode.current !== "SLEEP") {
+            lastEmittedMode.current = "SLEEP";
+            onModeChange?.("SLEEP");
+          }
         }
 
         animationFrame = requestAnimationFrame(cycle);
@@ -106,9 +129,8 @@ export default function EnergyTank({
     },
   };
 
-  const currentColorKey = cycleMode
-    ? activeColor
-    : "usage-gradient";
+  // Non-cycleMode: use the color prop directly; cycleMode: use animated activeColor
+  const currentColorKey = cycleMode ? activeColor : color;
 
   const c =
     colorMap[currentColorKey] ?? colorMap["usage-gradient"];
@@ -139,7 +161,7 @@ export default function EnergyTank({
 
         {/* Normal Gradient Layer */}
         <div
-          className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-green-500 via-yellow-400 to-red-500 shadow-lg shadow-yellow-300 transition-opacity duration-1000 ease-in-out"
+          className="absolute bottom-0 left-0 right-0 w-full bg-gradient-to-t from-green-500 via-yellow-400 to-red-500 shadow-lg shadow-yellow-300 transition-all duration-1000 ease-in-out"
           style={{
             height: `${visualFill}%`,
             opacity: activeColor === "low-green" ? 0 : 1,
