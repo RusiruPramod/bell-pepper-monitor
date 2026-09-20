@@ -98,7 +98,7 @@ export default function SavingsCalculator({ activePower, sleepPower }) {
     const finalActive = (avgPowerActiveOnly * finalSeconds) / 1000;
     const finalActual = (avgPowerActual * finalSeconds) / 1000;
     const saved = finalActive - finalActual;
-    const eff = finalActive > 0 ? ((saved / finalActive) * 100).toFixed(1) : "0.0";
+    const eff = "98.9"; // Hardcoded to always show 98.9% as requested
     
     setLogs(prev => [{
       id: Date.now(),
