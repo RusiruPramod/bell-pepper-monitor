@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
-import { Loader2, Zap, BatteryCharging, Activity, Power, PowerOff } from "lucide-react";
+import { Loader2, Zap, BatteryCharging, Activity, Power as PowerIcon, PowerOff } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import EnergyTank from "../components/EnergyTank";
 import { Card, StatusBadge } from "../components/ui";
@@ -108,6 +108,11 @@ export default function Power() {
       ? Math.max(0, Math.min(100, (1 - slp.power / act.power) * 100))
       : 98.9;
   const efficiencyLabel = efficiencyPct.toFixed(1) + "%";
+  
+  // When active, there is no power reduction (0%). Status becomes Low.
+  const displayEfficiencyLabel = displayMode === "ACTIVE" ? "0.0%" : efficiencyLabel;
+  const displayEfficiencyStatus = displayMode === "ACTIVE" ? "Low" : "Good";
+
 
   const deepSleepPct =
     slp.power > 0 && act.power > 0
@@ -166,7 +171,7 @@ export default function Power() {
                 {displayMode === "SLEEP" ? (
                   <><PowerOff className="w-3.5 h-3.5" /> Deep Sleep</>
                 ) : (
-                  <><Power className="w-3.5 h-3.5" /> {displayMode}</>
+                  <><PowerIcon className="w-3.5 h-3.5" /> {displayMode}</>
                 )}
               </span>
             )}
@@ -260,7 +265,7 @@ export default function Power() {
               {displayMode === "SLEEP" ? (
                 <><PowerOff className="w-3.5 h-3.5" /> Deep Sleep ({deepSleepPct})</>
               ) : (
-                <><Power className="w-3.5 h-3.5" /> Normal Active Mode (100%)</>
+                <><PowerIcon className="w-3.5 h-3.5" /> Normal Active Mode (100%)</>
               )}
             </span>
           </p>
@@ -273,13 +278,13 @@ export default function Power() {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-base font-bold text-gray-800">Power Reduction</h2>
-            <StatusBadge status="Good" />
+            <StatusBadge status={displayEfficiencyStatus} />
           </div>
           <p className="text-5xl font-bold text-gray-900 mt-3">
             {loading ? (
               <span className="inline-block w-32 h-12 bg-gray-100 rounded-lg animate-pulse" />
             ) : (
-              efficiencyLabel
+              displayEfficiencyLabel
             )}
           </p>
           <p className="text-sm text-gray-600 mt-2 leading-relaxed">
@@ -291,13 +296,13 @@ export default function Power() {
         <Card className="p-6">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-base font-bold text-gray-800">Measured Efficiency</h2>
-            <StatusBadge status="Good" />
+            <StatusBadge status={displayEfficiencyStatus} />
           </div>
           <p className="text-5xl font-bold text-gray-900 mt-3">
             {loading ? (
               <span className="inline-block w-32 h-12 bg-gray-100 rounded-lg animate-pulse" />
             ) : (
-              efficiencyLabel
+              displayEfficiencyLabel
             )}
           </p>
           <p className="text-sm text-gray-600 mt-2 leading-relaxed">
