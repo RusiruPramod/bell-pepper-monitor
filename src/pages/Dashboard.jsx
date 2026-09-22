@@ -1,19 +1,61 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { collection, query, limit, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
 import {
   Thermometer, Droplets, FlaskConical, Atom, Leaf, ArrowRight, Zap,
   Sunrise, Sun, Sunset, Moon, Lightbulb, Sparkles, Loader2, Bot, CheckCircle2,
+  WifiOff, Activity,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import ConditionCard from "../components/ConditionCard";
 import SuggestionCard from "../components/SuggestionCard";
 import { Card, StatusBadge } from "../components/ui";
-import { LIVE_READINGS, statusFor } from "../data/mockData";
+import { statusFor } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
+import { useFirebaseLive } from "../hooks/useFirebaseLive";
 import greenhouseImg from "../assets/bell_pepper_greenhouse.jpg";
 import npkImg from "../assets/npk_sensor1.jpeg";
+
+// ─── Device Status Pill ───────────────────────────────────────────────────────
+function DeviceStatusPill({ status }) {
+  if (status === "ACTIVE") {
+    return (
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200">
+        <span className="relative flex h-2.5 w-2.5">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+        </span>
+        <span className="text-xs font-semibold text-emerald-700 uppercase tracking-wide">Live · Active</span>
+      </div>
+    );
+  }
+  if (status === "DEEP_SLEEP") {
+    return (
+      <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200">
+        <Moon size={12} className="text-blue-500" />
+        <span className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Deep Sleep</span>
+      </div>
+    );
+  }
+  return (
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 border border-gray-200">
+      <WifiOff size={12} className="text-gray-400" />
+      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Connecting…</span>
+    </div>
+  );
+}
+
+// ─── Deep Sleep Banner ────────────────────────────────────────────────────────
+function DeepSleepBanner({ sleepSeconds }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-blue-50 border border-blue-200 text-blue-700 text-sm font-medium">
+      <Moon size={18} className="text-blue-500 shrink-0" />
+      <span>
+        ESP32 is in <strong>Deep Sleep</strong> — waking every <strong>{sleepSeconds}s</strong>.
+        Sensor values will refresh automatically on next wake cycle.
+      </span>
+    </div>
+  );
+}
 
 // CONDITION_CARDS moved inside component to use live Firebase data
 
@@ -884,31 +926,19 @@ const getGreetingInfo = () => {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [sensorData, setSensorData] = useState(null);
 
-  useEffect(() => {
-    const q = query(collection(db, "sensor_data"), orderBy("lastHandshake", "desc"), limit(1));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "added" || change.type === "modified") {
-          console.log("New sensor data received:", change.doc.data());
-          setSensorData(change.doc.data());
-        }
-      });
-    });
-    return () => unsubscribe();
-  }, []);
+  // ── Real-time Firebase RTDB listener (/gateway/live) ──────────────────────
+  const { data: liveData, connected, isActive, isDeepSleep } = useFirebaseLive();
 
-  const currentTemp = sensorData?.temperature ?? LIVE_READINGS.temperature;
-  const currentHum  = sensorData?.humidity    ?? LIVE_READINGS.humidity;
-
-  // Live NPK values — fall back to mock data while waiting for first Firestore doc
-  const currentN = sensorData?.nitrogen    ?? LIVE_READINGS.nitrogen.value;
-  const currentP = sensorData?.phosphorus  ?? LIVE_READINGS.phosphorus.value;
-  const currentK = sensorData?.potassium   ?? LIVE_READINGS.potassium.value;
+  const currentTemp = liveData.temperature;
+  const currentHum  = liveData.humidity;
+  const currentN    = liveData.nitrogen;
+  const currentP    = liveData.phosphorus;
+  const currentK    = liveData.potassium;
 
   // Simple NPK status helper (bell-pepper optimal ranges, ppm)
   const npkStatus = (val, low, high) => {
+    if (!connected || isDeepSleep) return "—";
     if (val === null || val === undefined) return "Unknown";
     if (val < low)  return "Low";
     if (val > high) return "High";
@@ -919,9 +949,11 @@ export default function Dashboard() {
   const pStatus = npkStatus(currentP, 20, 50);
   const kStatus = npkStatus(currentK, 20, 40);
 
-  // "Optimal" only when all three are Good
+  // "Optimal" only when all three are Good and device is active
   const npkOverallStatus =
-    nStatus === "Good" && pStatus === "Good" && kStatus === "Good" ? "Optimal" : "Needs Attention";
+    isDeepSleep ? "Sleeping"
+    : !connected ? "Connecting…"
+    : nStatus === "Good" && pStatus === "Good" && kStatus === "Good" ? "Optimal" : "Needs Attention";
 
   const CONDITION_CARDS = [
     {
@@ -948,18 +980,21 @@ export default function Dashboard() {
     {
       icon: Thermometer,
       label: "Temperature",
-      value: currentTemp,
+      value: isDeepSleep ? 0 : currentTemp,
       unit: "°C",
-      status: statusFor("temperature", currentTemp),
+      status: isDeepSleep ? "—" : statusFor("temperature", currentTemp),
     },
     {
       icon: Droplets,
       label: "Humidity",
-      value: currentHum,
+      value: isDeepSleep ? 0 : currentHum,
       unit: "%",
-      status: statusFor("humidity", currentHum),
+      status: isDeepSleep ? "—" : statusFor("humidity", currentHum),
     },
   ];
+
+  // Expose sensorData-like object for backward-compat with the rest of the render
+  const sensorData = connected ? liveData : null;
   const { text, Icon, badgeStyle } = getGreetingInfo();
   const greeting = (
     <div className="inline-flex items-center gap-3">
@@ -1059,10 +1094,24 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* ── Deep Sleep Banner ── */}
+      {isDeepSleep && <DeepSleepBanner sleepSeconds={liveData.sleepDurationSeconds} />}
+
       {/* ── Current Conditions ── */}
       <div>
-        <h2 className="text-base font-bold text-gray-800 mb-3">Current Conditions</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-bold text-gray-800">Current Conditions</h2>
+          <div className="flex items-center gap-3">
+            {connected && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <Activity size={13} />
+                <span>Auto-refresh via Firebase</span>
+              </div>
+            )}
+            <DeviceStatusPill status={liveData.deviceStatus} />
+          </div>
+        </div>
+        <div className={`grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 transition-opacity duration-500 ${isDeepSleep ? "opacity-50" : "opacity-100"}`}>
           {CONDITION_CARDS.map((c) => (
             <ConditionCard key={c.label} {...c} />
           ))}
@@ -1090,14 +1139,16 @@ export default function Dashboard() {
             <span className="text-base font-bold text-gray-800">NPK Soil Sensor</span>
             <span
               className={`ml-auto text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
-                !sensorData
+                !connected
                   ? "bg-gray-50 text-gray-500 border-gray-100"
+                  : isDeepSleep
+                  ? "bg-blue-50 text-blue-700 border-blue-100"
                   : npkOverallStatus === "Optimal"
                   ? "bg-green-50 text-green-700 border-green-100"
                   : "bg-amber-50 text-amber-700 border-amber-100"
               }`}
             >
-              {sensorData ? npkOverallStatus : "Connecting…"}
+              {connected ? npkOverallStatus : "Connecting…"}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-1">
@@ -1229,27 +1280,27 @@ export default function Dashboard() {
             <div className="space-y-2.5 text-sm">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600 font-medium">Status</span>
-                <StatusBadge status={sensorData ? "Connected" : "Waiting for data"} />
+                <StatusBadge status={!connected ? "Waiting for data" : isDeepSleep ? "Deep Sleep" : "Connected"} />
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Node ID</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.nodeId ?? "pending"}</span>
+                <span className="text-gray-800 font-semibold">{liveData.nodeId ?? "pending"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">RSSI / SNR</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.rssi ?? "pending"} dBm / {sensorData?.snr ?? "pending"} dB</span>
+                <span className="text-gray-800 font-semibold">{liveData.rssi ?? "pending"} dBm / {liveData.snr ?? "—"} dB</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Tx Power / Count</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.txPower ?? "pending"} dBm / {sensorData?.txCount ?? "pending"}</span>
+                <span className="text-gray-800 font-semibold">{liveData.txPower ?? "pending"} dBm / {liveData.txCount ?? "pending"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Spreading Factor (SF)</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.sf ?? "pending"}</span>
+                <span className="text-gray-800 font-semibold">{liveData.sf != null ? `SF${liveData.sf}` : "pending"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600 font-medium">Boot Count</span>
-                <span className="text-gray-800 font-semibold">{sensorData?.bootCount ?? "pending"}</span>
+                <span className="text-gray-800 font-semibold">{liveData.bootCount ?? "pending"}</span>
               </div>
             </div>
             <Link
