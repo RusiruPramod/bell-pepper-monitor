@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
 import { Loader2, Zap, BatteryCharging, Activity, Power as PowerIcon, PowerOff } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import EnergyTank from "../components/EnergyTank";
 import SavingsCalculator from "../components/SavingsCalculator";
 import { Card, StatusBadge } from "../components/ui";
+import { useFirebaseLive } from "../hooks/useFirebaseLive";
 
 // ─── Static fallback defaults (used before Firestore data arrives) ──────────
 const DEFAULT_ACTIVE = { busVoltage: 5, voltage: 3.3, current: 195,  power: 643.5 };
@@ -18,60 +17,15 @@ function fmt(val, d = 2) {
 }
 
 export default function Power() {
-  const [activeData, setActiveData]   = useState(null); // last ACTIVE snapshot
-  const [sleepData, setSleepData]     = useState(null); // last SLEEP snapshot
-  const [currentMode, setCurrentMode] = useState(null); // live powerMode from Firebase
-  const [loading, setLoading]         = useState(true);
-  const [lastUpdated, setLastUpdated] = useState(null);
+  const { data: liveData, connected } = useFirebaseLive();
+  
+  // Maps RTDB deviceStatus to local powerMode
+  const currentMode = liveData.deviceStatus === "DEEP_SLEEP" ? "SLEEP" : "ACTIVE";
+  const loading = !connected;
 
-  // ─── Firestore real-time listener ────────────────────────────────────────
-  useEffect(() => {
-    // Try ordered query first; fall back to unordered if composite index missing
-    const orderedQ = query(
-      collection(db, "sensor_data"),
-      orderBy("lastHandshake", "desc"),
-      limit(1)
-    );
-
-    let fallbackUnsub = null;
-
-    // Routes doc into the correct snapshot by powerMode
-    const handleDoc = (data) => {
-      if (!data) return;
-      setLastUpdated(new Date());
-      setCurrentMode(data.powerMode ?? null);
-      if (data.powerMode === "SLEEP") {
-        setSleepData(data);   // ← Sleep column
-      } else {
-        setActiveData(data);  // ← Normal Active column
-      }
-    };
-
-    const unsub = onSnapshot(
-      orderedQ,
-      (snapshot) => {
-        setLoading(false);
-        if (!snapshot.empty) handleDoc(snapshot.docs[0].data());
-      },
-      (err) => {
-        console.warn("Power – ordered query fallback:", err.message);
-        const fallbackQ = query(collection(db, "sensor_data"));
-        fallbackUnsub = onSnapshot(fallbackQ, (snap) => {
-          setLoading(false);
-          snap.docChanges().forEach((change) => {
-            if (change.type === "added" || change.type === "modified") {
-              handleDoc(change.doc.data());
-            }
-          });
-        });
-      }
-    );
-
-    return () => {
-      unsub();
-      if (fallbackUnsub) fallbackUnsub();
-    };
-  }, []);
+  // We use fallback defaults for now as INA226 hardware isn't sending live power metrics yet
+  const activeData = null;
+  const sleepData = null;
 
   // ─── Resolved values for each column ────────────────────────────────────
   // Normal Active Mode column → activeData || DEFAULT_ACTIVE
@@ -80,7 +34,7 @@ export default function Power() {
     voltage:    activeData?.voltage    ?? DEFAULT_ACTIVE.voltage,
     current:    activeData?.current    ?? DEFAULT_ACTIVE.current,
     power:      activeData?.power      ?? DEFAULT_ACTIVE.power,
-    powerMode:  activeData?.powerMode  ?? "ACTIVE",
+    powerMode:  "ACTIVE",
   };
   // Deep Sleep Mode column → sleepData || DEFAULT_SLEEP
   const slp = {
@@ -88,14 +42,14 @@ export default function Power() {
     voltage:    sleepData?.voltage    ?? DEFAULT_SLEEP.voltage,
     current:    sleepData?.current    ?? DEFAULT_SLEEP.current,
     power:      sleepData?.power      ?? DEFAULT_SLEEP.power,
-    powerMode:  sleepData?.powerMode  ?? "SLEEP",
+    powerMode:  "SLEEP",
   };
 
   const powerMode = currentMode ?? "—";
 
   // displayMode: Firebase live data → default ACTIVE when not yet received
   // This drives BOTH the top status badge AND the right EnergyTank
-  const displayMode = currentMode ?? "ACTIVE";
+  const displayMode = currentMode;
 
   // Right tank config — switches instantly when displayMode changes
   const rightTank =
@@ -151,13 +105,9 @@ export default function Power() {
           <>
             <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-              Live · sensor_data
+              Live · /gateway/live
             </span>
-            {lastUpdated && (
-              <span className="text-xs text-gray-400">
-                Updated {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
+
             {/* Status badge — synced to Firebase live mode OR EnergyTank cycle animation */}
             {displayMode && (
               <span

@@ -1315,10 +1315,12 @@ export default function Dashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-base font-bold text-gray-800">Energy</h2>
-              <Zap size={16} className="text-green-600" />
+              <Zap size={16} className={isDeepSleep ? "text-blue-500" : "text-amber-500"} />
             </div>
-            <p className="text-sm font-medium text-gray-600 mb-3">Power Saving Active</p>
-            <p className="text-4xl font-bold text-gray-900 mb-1">98.9%</p>
+            <p className="text-sm font-medium text-gray-600 mb-3">
+              {isDeepSleep ? "Power Saving Active (Deep Sleep)" : "Normal Active Mode"}
+            </p>
+            <p className="text-4xl font-bold text-gray-900 mb-1">{isDeepSleep ? "98.9%" : "0%"}</p>
             <p className="text-sm text-gray-600 leading-relaxed">
               Power reduction · measured using INA226 power monitoring.
             </p>
