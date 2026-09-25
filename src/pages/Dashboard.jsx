@@ -12,6 +12,7 @@ import { Card, StatusBadge } from "../components/ui";
 import { statusFor } from "../data/mockData";
 import { useAuth } from "../context/AuthContext";
 import { useFirebaseLive } from "../hooks/useFirebaseLive";
+import { getAISuggestions } from "../services/gemini";
 import greenhouseImg from "../assets/bell_pepper_greenhouse.jpg";
 import npkImg from "../assets/npk_sensor1.jpeg";
 
@@ -148,8 +149,8 @@ function useRealtimePowerData() {
     const generatePoint = (time, prevEnergy) => {
       // 30s intervals. Phase out of 6 (3 minutes total per cycle)
       const epoch30s = Math.floor(time.getTime() / 30000);
-      const phase = epoch30s % 6; 
-      
+      const phase = epoch30s % 6;
+
       let mode, power, current, color;
       if (phase === 0) {
         mode = "Normal / Active"; power = 650; current = "196.9 mA"; color = "#ef4444";
@@ -158,7 +159,7 @@ function useRealtimePowerData() {
       } else {
         mode = "Deep Sleep"; power = 6.5; current = "1.97 mA"; color = "#16a34a";
       }
-      
+
       const energyInc = power * (30 / 3600); // simplified energy accumulation
 
       return {
@@ -168,7 +169,7 @@ function useRealtimePowerData() {
         power,
         current,
         color,
-        energy: prevEnergy + energyInc / 100 
+        energy: prevEnergy + energyInc / 100
       };
     };
 
@@ -176,11 +177,11 @@ function useRealtimePowerData() {
       const now = new Date();
       now.setMilliseconds(0);
       const currentSlot = new Date(Math.floor(now.getTime() / 30000) * 30000);
-      
+
       const numPoints = 12; // 6 minutes window
       let currentEnergy = 0.5; // start base energy
       const newData = [];
-      
+
       for (let i = numPoints - 1; i >= 0; i--) {
         const ptTime = new Date(currentSlot.getTime() - i * 30000);
         const pt = generatePoint(ptTime, currentEnergy);
@@ -191,7 +192,7 @@ function useRealtimePowerData() {
     };
 
     updateData();
-    const interval = setInterval(updateData, 1000); 
+    const interval = setInterval(updateData, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -216,14 +217,14 @@ function PowerConsumptionChart({ data }) {
 
   // Y scale: 0 to 700 mW
   const getY = (power) => padTop + (1 - power / 700) * plotH;
-  
+
   // X scale: based on data array length
   const getX = (index) => padLeft + (index / (data.length - 1)) * plotW;
 
   const currentTooltip = hoveredPoint;
 
   const yTicks = [700, 600, 500, 400, 300, 200, 100, 0];
-  
+
   // Create xTicks every 2 points (every 1 minute)
   const xTicks = data.filter((_, i) => i % 2 === 0).map((d, i) => ({
     label: d.timeLabel.split(" ")[0], // grab time string
@@ -415,7 +416,7 @@ function EnergyConsumptionChart({ data }) {
 
   // X scale: based on data array length
   const getX = (index) => padLeft + (index / (data.length - 1)) * plotW;
-  
+
   // Dynamic Y scale max:
   const maxEnergy = Math.max(1.25, ...data.map(d => d.energy));
   const roundedMax = Math.ceil(maxEnergy * 4) / 4; // round to nearest 0.25
@@ -634,20 +635,20 @@ export default function Dashboard() {
   const { data: liveData, connected, isActive, isDeepSleep } = useFirebaseLive();
 
   const currentTemp = liveData.temperature;
-  const currentHum  = liveData.humidity;
-  const currentN    = liveData.nitrogen;
-  const currentP    = liveData.phosphorus;
-  const currentK    = liveData.potassium;
+  const currentHum = liveData.humidity;
+  const currentN = liveData.nitrogen;
+  const currentP = liveData.phosphorus;
+  const currentK = liveData.potassium;
 
   // Banner-specific logic to retain last known active values during deep sleep
   const lastActiveNpkRef = useRef({ n: 0, p: 0, k: 0 });
-  
+
   useEffect(() => {
     if (isActive && (currentN !== 0 || currentP !== 0 || currentK !== 0)) {
       lastActiveNpkRef.current = { n: currentN, p: currentP, k: currentK };
     }
   }, [isActive, currentN, currentP, currentK]);
-  
+
   const bannerN = (isDeepSleep && currentN === 0) ? lastActiveNpkRef.current.n : currentN;
   const bannerP = (isDeepSleep && currentP === 0) ? lastActiveNpkRef.current.p : currentP;
   const bannerK = (isDeepSleep && currentK === 0) ? lastActiveNpkRef.current.k : currentK;
@@ -655,7 +656,7 @@ export default function Dashboard() {
   const getBannerNpkStatus = (val, low, high) => {
     if (!connected) return "—";
     if (val === null || val === undefined) return "Unknown";
-    if (val < low)  return "Low";
+    if (val < low) return "Low";
     if (val > high) return "High";
     return "Good";
   };
@@ -666,13 +667,13 @@ export default function Dashboard() {
 
   const bannerNpkOverallStatus =
     !connected ? "Connecting…"
-    : bannerNStatus === "Good" && bannerPStatus === "Good" && bannerKStatus === "Good" ? "Optimal" : "Needs Attention";
+      : bannerNStatus === "Good" && bannerPStatus === "Good" && bannerKStatus === "Good" ? "Optimal" : "Needs Attention";
 
   // Simple NPK status helper (bell-pepper optimal ranges, ppm)
   const npkStatus = (val, low, high) => {
     if (!connected || isDeepSleep) return "—";
     if (val === null || val === undefined) return "Unknown";
-    if (val < low)  return "Low";
+    if (val < low) return "Low";
     if (val > high) return "High";
     return "Good";
   };
@@ -684,8 +685,8 @@ export default function Dashboard() {
   // "Optimal" only when all three are Good and device is active
   const npkOverallStatus =
     isDeepSleep ? "Sleeping"
-    : !connected ? "Connecting…"
-    : nStatus === "Good" && pStatus === "Good" && kStatus === "Good" ? "Optimal" : "Needs Attention";
+      : !connected ? "Connecting…"
+        : nStatus === "Good" && pStatus === "Good" && kStatus === "Good" ? "Optimal" : "Needs Attention";
 
   const CONDITION_CARDS = [
     {
@@ -744,31 +745,35 @@ export default function Dashboard() {
   const [lastAnalyzed, setLastAnalyzed] = useState("Just now");
   const [showSuccessBadge, setShowSuccessBadge] = useState(false);
 
-  const handleRunAIAnalysis = () => {
+  const handleRunAIAnalysis = async () => {
     if (isAnalyzing) return;
     setIsAnalyzing(true);
     setShowSuccessBadge(false);
 
-    // Step 1: Scan telemetry
-    setAnalysisStep({ text: "Reading live LoRa sensor telemetry...", progress: 25 });
+    const apiKey = localStorage.getItem("gemini_api_key");
+    if (!apiKey) {
+      setAnalysisStep({ text: "API Key missing. Please add it in Settings.", progress: 0 });
+      setTimeout(() => setIsAnalyzing(false), 3000);
+      return;
+    }
 
-    setTimeout(() => {
-      // Step 2: Crop growth model
-      setAnalysisStep({ text: "Evaluating Bell Pepper NPK & VPD microclimate curves...", progress: 60 });
-    }, 700);
+    try {
+      setAnalysisStep({ text: "Reading live LoRa sensor telemetry...", progress: 25 });
 
-    setTimeout(() => {
-      // Step 3: Synthesizing recommendations
-      setAnalysisStep({ text: "Synthesizing actionable agronomic recommendations...", progress: 90 });
-    }, 1450);
+      const readings = {
+        nitrogen: { value: currentN, status: nStatus },
+        phosphorus: { value: currentP, status: pStatus },
+        potassium: { value: currentK, status: kStatus },
+        temperature: currentTemp,
+        humidity: currentHum
+      };
 
-    setTimeout(() => {
-      // Step 4: Finalize
+      setAnalysisStep({ text: "Synthesizing agronomic recommendations (retrying if busy)…", progress: 60 });
+
+      const newSuggestions = await getAISuggestions(apiKey, readings);
+
       setAnalysisStep({ text: "AI Recommendations Generated!", progress: 100 });
-
-      const nextIndex = (presetIndex + 1) % AI_SUGGESTION_PRESETS.length;
-      setPresetIndex(nextIndex);
-      setSuggestions(AI_SUGGESTION_PRESETS[nextIndex]);
+      setSuggestions(newSuggestions);
       setIsAnalyzing(false);
       setShowSuccessBadge(true);
       setLastAnalyzed(
@@ -776,7 +781,10 @@ export default function Dashboard() {
       );
 
       setTimeout(() => setShowSuccessBadge(false), 3500);
-    }, 2200);
+    } catch (err) {
+      setAnalysisStep({ text: "AI error: " + err.message, progress: 0 });
+      setTimeout(() => setIsAnalyzing(false), 4000);
+    }
   };
 
   return (
@@ -870,24 +878,23 @@ export default function Dashboard() {
             </span>
             <span className="text-base font-bold text-gray-800">NPK Soil Sensor</span>
             <span
-              className={`ml-auto text-xs px-2.5 py-0.5 rounded-full font-semibold border ${
-                !connected
+              className={`ml-auto text-xs px-2.5 py-0.5 rounded-full font-semibold border ${!connected
                   ? "bg-gray-50 text-gray-500 border-gray-100"
                   : isDeepSleep
-                  ? "bg-blue-50 text-blue-700 border-blue-100"
-                  : npkOverallStatus === "Optimal"
-                  ? "bg-green-50 text-green-700 border-green-100"
-                  : "bg-amber-50 text-amber-700 border-amber-100"
-              }`}
+                    ? "bg-blue-50 text-blue-700 border-blue-100"
+                    : npkOverallStatus === "Optimal"
+                      ? "bg-green-50 text-green-700 border-green-100"
+                      : "bg-amber-50 text-amber-700 border-amber-100"
+                }`}
             >
               {connected ? npkOverallStatus : "Connecting…"}
             </span>
           </div>
           <div className="grid grid-cols-3 gap-3 mt-1">
             {[
-              { label: "Nitrogen",   value: bannerN, status: bannerNStatus, unit: "ppm", color: "text-blue-600" },
+              { label: "Nitrogen", value: bannerN, status: bannerNStatus, unit: "ppm", color: "text-blue-600" },
               { label: "Phosphorus", value: bannerP, status: bannerPStatus, unit: "ppm", color: "text-purple-600" },
-              { label: "Potassium",  value: bannerK, status: bannerKStatus, unit: "ppm", color: "text-amber-600" },
+              { label: "Potassium", value: bannerK, status: bannerKStatus, unit: "ppm", color: "text-amber-600" },
             ].map(({ label, value, status, unit, color }) => (
               <div key={label} className="flex flex-col">
                 <span className="text-sm font-medium text-gray-600 mb-0.5">{label}</span>

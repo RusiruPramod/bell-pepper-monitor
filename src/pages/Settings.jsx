@@ -11,19 +11,22 @@ export default function Settings() {
   const navigate = useNavigate();
 
   const [apiKey, setApiKey]         = useState("");
-  const [savedKey, setSavedKey]     = useState("");
+  const [savedKey, setSavedKey]     = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [showKey, setShowKey]       = useState(false);
   const aiConfigured                = Boolean(savedKey);
 
   const handleSaveKey = () => {
     if (apiKey.trim()) {
-      setSavedKey(apiKey.trim());
+      const key = apiKey.trim();
+      setSavedKey(key);
+      localStorage.setItem("gemini_api_key", key);
       setApiKey("");
     }
   };
 
   const handleRemoveKey = () => {
     setSavedKey("");
+    localStorage.removeItem("gemini_api_key");
     setApiKey("");
   };
 
@@ -92,7 +95,7 @@ export default function Settings() {
             <div className="flex gap-2">
               <button
                 id="settings-update-key-btn"
-                onClick={() => { setSavedKey(""); }}
+                onClick={() => { setSavedKey(""); localStorage.removeItem("gemini_api_key"); }}
                 className="px-4 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
               >
                 Update API Key
