@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Thermometer, Droplets, FlaskConical, Atom, Leaf, ArrowRight, Zap,
@@ -936,6 +936,35 @@ export default function Dashboard() {
   const currentP    = liveData.phosphorus;
   const currentK    = liveData.potassium;
 
+  // Banner-specific logic to retain last known active values during deep sleep
+  const lastActiveNpkRef = useRef({ n: 0, p: 0, k: 0 });
+  
+  useEffect(() => {
+    if (isActive && (currentN !== 0 || currentP !== 0 || currentK !== 0)) {
+      lastActiveNpkRef.current = { n: currentN, p: currentP, k: currentK };
+    }
+  }, [isActive, currentN, currentP, currentK]);
+  
+  const bannerN = (isDeepSleep && currentN === 0) ? lastActiveNpkRef.current.n : currentN;
+  const bannerP = (isDeepSleep && currentP === 0) ? lastActiveNpkRef.current.p : currentP;
+  const bannerK = (isDeepSleep && currentK === 0) ? lastActiveNpkRef.current.k : currentK;
+
+  const getBannerNpkStatus = (val, low, high) => {
+    if (!connected) return "—";
+    if (val === null || val === undefined) return "Unknown";
+    if (val < low)  return "Low";
+    if (val > high) return "High";
+    return "Good";
+  };
+
+  const bannerNStatus = getBannerNpkStatus(bannerN, 30, 60);
+  const bannerPStatus = getBannerNpkStatus(bannerP, 20, 50);
+  const bannerKStatus = getBannerNpkStatus(bannerK, 20, 40);
+
+  const bannerNpkOverallStatus =
+    !connected ? "Connecting…"
+    : bannerNStatus === "Good" && bannerPStatus === "Good" && bannerKStatus === "Good" ? "Optimal" : "Needs Attention";
+
   // Simple NPK status helper (bell-pepper optimal ranges, ppm)
   const npkStatus = (val, low, high) => {
     if (!connected || isDeepSleep) return "—";
@@ -1153,9 +1182,9 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-3 gap-3 mt-1">
             {[
-              { label: "Nitrogen",   value: currentN, status: nStatus, unit: "ppm", color: "text-blue-600" },
-              { label: "Phosphorus", value: currentP, status: pStatus, unit: "ppm", color: "text-purple-600" },
-              { label: "Potassium",  value: currentK, status: kStatus, unit: "ppm", color: "text-amber-600" },
+              { label: "Nitrogen",   value: bannerN, status: bannerNStatus, unit: "ppm", color: "text-blue-600" },
+              { label: "Phosphorus", value: bannerP, status: bannerPStatus, unit: "ppm", color: "text-purple-600" },
+              { label: "Potassium",  value: bannerK, status: bannerKStatus, unit: "ppm", color: "text-amber-600" },
             ].map(({ label, value, status, unit, color }) => (
               <div key={label} className="flex flex-col">
                 <span className="text-sm font-medium text-gray-600 mb-0.5">{label}</span>
@@ -1171,7 +1200,7 @@ export default function Dashboard() {
           </div>
           <p className="text-sm text-gray-600 mt-3">
             {sensorData
-              ? npkOverallStatus === "Optimal"
+              ? bannerNpkOverallStatus === "Optimal"
                 ? "Soil nutrient levels are within optimal range for bell pepper growth."
                 : "One or more nutrient levels need attention. Review the condition cards above."
               : "Waiting for live sensor data from the LoRa network…"}
