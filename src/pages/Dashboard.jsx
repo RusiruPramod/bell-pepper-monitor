@@ -140,8 +140,66 @@ const AI_SUGGESTION_PRESETS = [
   ],
 ];
 
+// ── Realtime Power Data Hook ──────────────────────────────────────────────────
+function useRealtimePowerData() {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    const generatePoint = (time, prevEnergy) => {
+      // 30s intervals. Phase out of 6 (3 minutes total per cycle)
+      const epoch30s = Math.floor(time.getTime() / 30000);
+      const phase = epoch30s % 6; 
+      
+      let mode, power, current, color;
+      if (phase === 0) {
+        mode = "Normal / Active"; power = 650; current = "196.9 mA"; color = "#ef4444";
+      } else if (phase === 1) {
+        mode = "Transmission"; power = 155; current = "47.0 mA"; color = "#f59e0b";
+      } else {
+        mode = "Deep Sleep"; power = 6.5; current = "1.97 mA"; color = "#16a34a";
+      }
+      
+      const energyInc = power * (30 / 3600); // simplified energy accumulation
+
+      return {
+        time,
+        timeLabel: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        mode,
+        power,
+        current,
+        color,
+        energy: prevEnergy + energyInc / 100 
+      };
+    };
+
+    const updateData = () => {
+      const now = new Date();
+      now.setMilliseconds(0);
+      const currentSlot = new Date(Math.floor(now.getTime() / 30000) * 30000);
+      
+      const numPoints = 12; // 6 minutes window
+      let currentEnergy = 0.5; // start base energy
+      const newData = [];
+      
+      for (let i = numPoints - 1; i >= 0; i--) {
+        const ptTime = new Date(currentSlot.getTime() - i * 30000);
+        const pt = generatePoint(ptTime, currentEnergy);
+        currentEnergy = pt.energy;
+        newData.push(pt);
+      }
+      setData(newData);
+    };
+
+    updateData();
+    const interval = setInterval(updateData, 1000); 
+    return () => clearInterval(interval);
+  }, []);
+
+  return data;
+}
+
 // ── Power & Energy Monitoring Charts ──────────────────────────────────────────
-function PowerConsumptionChart() {
+function PowerConsumptionChart({ data }) {
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   // SVG dimensions
@@ -154,70 +212,51 @@ function PowerConsumptionChart() {
   const plotW = width - padLeft - padRight;
   const plotH = height - padTop - padBottom;
 
-  // Y scale: 0 to 700 mW -> y = (padTop + plotH) to padTop
+  if (!data || data.length === 0) return null;
+
+  // Y scale: 0 to 700 mW
   const getY = (power) => padTop + (1 - power / 700) * plotH;
-  // X scale: 0 to 82 mins (10:00 to 11:22)
-  const getX = (min) => padLeft + (min / 80) * plotW;
+  
+  // X scale: based on data array length
+  const getX = (index) => padLeft + (index / (data.length - 1)) * plotW;
 
-  // Default active tooltip point (10:45 deep sleep spike dot)
-  const defaultPoint = {
-    x: getX(45),
-    y: getY(105),
-    time: "10:30:45",
-    mode: "Deep Sleep",
-    power: "6.50 mW",
-    current: "1.97 mA",
-  };
-
-  const currentTooltip = hoveredPoint || defaultPoint;
-
-  // Key interactive dots with metadata
-  const dots = [
-    // Top active plateau (left)
-    { x: getX(0), y: getY(650), color: "#ef4444", time: "10:00:00", mode: "Normal / Active", power: "650.0 mW", current: "196.9 mA" },
-    { x: getX(10), y: getY(650), color: "#ef4444", time: "10:10:00", mode: "Normal / Active", power: "650.0 mW", current: "196.9 mA" },
-    // Left transition
-    { x: getX(13), y: getY(50), color: "#f59e0b", time: "10:13:00", mode: "Transmission", power: "50.0 mW", current: "15.2 mA" },
-    { x: getX(15), y: getY(6.5), color: "#f59e0b", time: "10:15:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
-    // Baseline green dots
-    { x: getX(0), y: getY(6.5), color: "#16a34a", time: "10:00:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(7), y: getY(6.5), color: "#16a34a", time: "10:07:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(11), y: getY(6.5), color: "#16a34a", time: "10:11:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(18), y: getY(6.5), color: "#16a34a", time: "10:18:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(24), y: getY(6.5), color: "#16a34a", time: "10:24:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    // Transmission spike
-    { x: getX(26), y: getY(155), color: "#f59e0b", time: "10:26:00", mode: "Transmission", power: "155.0 mW", current: "47.0 mA" },
-    { x: getX(28), y: getY(6.5), color: "#f59e0b", time: "10:28:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
-    // Baseline green dots middle
-    { x: getX(31), y: getY(6.5), color: "#16a34a", time: "10:31:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(36), y: getY(6.5), color: "#16a34a", time: "10:36:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(40), y: getY(6.5), color: "#16a34a", time: "10:40:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(44), y: getY(6.5), color: "#16a34a", time: "10:44:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    // Green spike at 10:45 (matching screenshot)
-    { x: getX(45), y: getY(105), color: "#16a34a", time: "10:30:45", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(47), y: getY(6.5), color: "#16a34a", time: "10:47:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(52), y: getY(6.5), color: "#16a34a", time: "10:52:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(57), y: getY(6.5), color: "#16a34a", time: "10:57:00", mode: "Deep Sleep", power: "6.50 mW", current: "1.97 mA" },
-    // Right transition to active
-    { x: getX(62), y: getY(6.5), color: "#f59e0b", time: "11:02:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
-    { x: getX(64), y: getY(95), color: "#f59e0b", time: "11:04:00", mode: "Transmission", power: "95.0 mW", current: "28.8 mA" },
-    // Right active plateau
-    { x: getX(66), y: getY(595), color: "#ef4444", time: "11:06:00", mode: "Normal / Active", power: "595.0 mW", current: "180.3 mA" },
-    { x: getX(78), y: getY(595), color: "#ef4444", time: "11:18:00", mode: "Normal / Active", power: "595.0 mW", current: "180.3 mA" },
-    // Right transition down
-    { x: getX(80), y: getY(95), color: "#f59e0b", time: "11:20:00", mode: "Transmission", power: "95.0 mW", current: "28.8 mA" },
-    { x: getX(82), y: getY(6.5), color: "#f59e0b", time: "11:22:00", mode: "Transmission", power: "6.50 mW", current: "1.97 mA" },
-  ];
+  const currentTooltip = hoveredPoint;
 
   const yTicks = [700, 600, 500, 400, 300, 200, 100, 0];
-  const xTicks = [
-    { label: "10:00", min: 0 },
-    { label: "10:15", min: 15 },
-    { label: "10:30", min: 30 },
-    { label: "10:45", min: 45 },
-    { label: "11:00", min: 60 },
-    { label: "11:15", min: 75 },
-  ];
+  
+  // Create xTicks every 2 points (every 1 minute)
+  const xTicks = data.filter((_, i) => i % 2 === 0).map((d, i) => ({
+    label: d.timeLabel.split(" ")[0], // grab time string
+    index: data.indexOf(d)
+  }));
+
+  // Create path lines connecting points
+  const renderLines = () => {
+    const lines = [];
+    for (let i = 0; i < data.length - 1; i++) {
+      const p1 = data[i];
+      const p2 = data[i + 1];
+      const x1 = getX(i);
+      const y1 = getY(p1.power);
+      const x2 = getX(i + 1);
+      const y2 = getY(p2.power);
+
+      // We can draw a direct line between states.
+      // If color changes, we might transition midway, but standard direct line is fine.
+      lines.push(
+        <line
+          key={`l-${i}`}
+          x1={x1}
+          y1={y1}
+          x2={x2}
+          y2={y2}
+          stroke={p1.color} // Using p1 color for the segment
+          strokeWidth="2"
+        />
+      );
+    }
+    return lines;
+  };
 
   return (
     <div className="w-full">
@@ -253,13 +292,7 @@ function PowerConsumptionChart() {
           className="w-full h-auto select-none overflow-visible"
         >
           {/* Top Y-Axis Unit Label */}
-          <text
-            x={padLeft - 22}
-            y={padTop - 12}
-            fontSize="11"
-            fill="#374151"
-            fontWeight="500"
-          >
+          <text x={padLeft - 22} y={padTop - 12} fontSize="11" fill="#374151" fontWeight="500">
             Power (mW)
           </text>
 
@@ -269,32 +302,10 @@ function PowerConsumptionChart() {
             return (
               <g key={val}>
                 {val > 0 && (
-                  <line
-                    x1={padLeft}
-                    y1={y}
-                    x2={width - padRight}
-                    y2={y}
-                    stroke="#f3f4f6"
-                    strokeWidth="1"
-                  />
+                  <line x1={padLeft} y1={y} x2={width - padRight} y2={y} stroke="#f3f4f6" strokeWidth="1" />
                 )}
-                {/* Y Tick mark */}
-                <line
-                  x1={padLeft - 4}
-                  y1={y}
-                  x2={padLeft}
-                  y2={y}
-                  stroke="#d1d5db"
-                  strokeWidth="1"
-                />
-                {/* Y Tick Label */}
-                <text
-                  x={padLeft - 8}
-                  y={y + 3.5}
-                  fontSize="10.5"
-                  fill="#4b5563"
-                  textAnchor="end"
-                >
+                <line x1={padLeft - 4} y1={y} x2={padLeft} y2={y} stroke="#d1d5db" strokeWidth="1" />
+                <text x={padLeft - 8} y={y + 3.5} fontSize="10.5" fill="#4b5563" textAnchor="end">
                   {val}
                 </text>
               </g>
@@ -303,34 +314,12 @@ function PowerConsumptionChart() {
 
           {/* Vertical Grid lines & X Ticks */}
           {xTicks.map((t) => {
-            const x = getX(t.min);
+            const x = getX(t.index);
             return (
-              <g key={t.label}>
-                <line
-                  x1={x}
-                  y1={padTop}
-                  x2={x}
-                  y2={padTop + plotH}
-                  stroke="#f3f4f6"
-                  strokeWidth="1"
-                />
-                {/* X Tick mark */}
-                <line
-                  x1={x}
-                  y1={padTop + plotH}
-                  x2={x}
-                  y2={padTop + plotH + 4}
-                  stroke="#d1d5db"
-                  strokeWidth="1"
-                />
-                {/* X Tick label */}
-                <text
-                  x={x}
-                  y={padTop + plotH + 16}
-                  fontSize="10.5"
-                  fill="#4b5563"
-                  textAnchor="middle"
-                >
+              <g key={t.index}>
+                <line x1={x} y1={padTop} x2={x} y2={padTop + plotH} stroke="#f3f4f6" strokeWidth="1" />
+                <line x1={x} y1={padTop + plotH} x2={x} y2={padTop + plotH + 4} stroke="#d1d5db" strokeWidth="1" />
+                <text x={x} y={padTop + plotH + 16} fontSize="10.5" fill="#4b5563" textAnchor="middle">
                   {t.label}
                 </text>
               </g>
@@ -338,170 +327,29 @@ function PowerConsumptionChart() {
           })}
 
           {/* X and Y Axis Lines */}
-          <line
-            x1={padLeft}
-            y1={padTop}
-            x2={padLeft}
-            y2={padTop + plotH}
-            stroke="#d1d5db"
-            strokeWidth="1"
-          />
-          <line
-            x1={padLeft}
-            y1={padTop + plotH}
-            x2={width - padRight}
-            y2={padTop + plotH}
-            stroke="#d1d5db"
-            strokeWidth="1"
-          />
+          <line x1={padLeft} y1={padTop} x2={padLeft} y2={padTop + plotH} stroke="#d1d5db" strokeWidth="1" />
+          <line x1={padLeft} y1={padTop + plotH} x2={width - padRight} y2={padTop + plotH} stroke="#d1d5db" strokeWidth="1" />
 
-          {/* ── 1. Green continuous baseline line ── */}
-          <line
-            x1={getX(0)}
-            y1={getY(6.5)}
-            x2={getX(82)}
-            y2={getY(6.5)}
-            stroke="#16a34a"
-            strokeWidth="2"
-          />
-
-          {/* ── 2. First Active plateau & ramp down (Red & Amber) ── */}
-          <line
-            x1={getX(0)}
-            y1={getY(650)}
-            x2={getX(10)}
-            y2={getY(650)}
-            stroke="#ef4444"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(10)}
-            y1={getY(650)}
-            x2={getX(13)}
-            y2={getY(50)}
-            stroke="#ef4444"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(13)}
-            y1={getY(50)}
-            x2={getX(15)}
-            y2={getY(6.5)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
-
-          {/* ── 3. Middle Transmission spike (Amber) ── */}
-          <line
-            x1={getX(24)}
-            y1={getY(6.5)}
-            x2={getX(26)}
-            y2={getY(155)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(26)}
-            y1={getY(155)}
-            x2={getX(28)}
-            y2={getY(6.5)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
-
-          {/* ── 4. Middle Deep Sleep bump (Green) ── */}
-          <line
-            x1={getX(44)}
-            y1={getY(6.5)}
-            x2={getX(45)}
-            y2={getY(105)}
-            stroke="#16a34a"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(45)}
-            y1={getY(105)}
-            x2={getX(47)}
-            y2={getY(6.5)}
-            stroke="#16a34a"
-            strokeWidth="2"
-          />
-
-          {/* ── 5. Second Active block ramp up & plateau (Amber & Red) ── */}
-          <line
-            x1={getX(62)}
-            y1={getY(6.5)}
-            x2={getX(64)}
-            y2={getY(95)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(64)}
-            y1={getY(95)}
-            x2={getX(66)}
-            y2={getY(595)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(66)}
-            y1={getY(595)}
-            x2={getX(78)}
-            y2={getY(595)}
-            stroke="#ef4444"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(78)}
-            y1={getY(595)}
-            x2={getX(80)}
-            y2={getY(95)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
-          <line
-            x1={getX(80)}
-            y1={getY(95)}
-            x2={getX(82)}
-            y2={getY(6.5)}
-            stroke="#f59e0b"
-            strokeWidth="2"
-          />
+          {/* Render Lines */}
+          {renderLines()}
 
           {/* ── Dots ── */}
-          {dots.map((dot, idx) => {
-            const isHovered = currentTooltip.x === dot.x && currentTooltip.y === dot.y;
+          {data.map((d, idx) => {
+            const px = getX(idx);
+            const py = getY(d.power);
+            const isHovered = currentTooltip === d;
             return (
               <g
                 key={idx}
                 className="cursor-pointer transition-transform duration-150"
-                onMouseEnter={() => setHoveredPoint(dot)}
+                onMouseEnter={() => setHoveredPoint(d)}
                 onMouseLeave={() => setHoveredPoint(null)}
               >
-                {/* Hit area */}
-                <circle cx={dot.x} cy={dot.y} r="10" fill="transparent" />
-                {/* Pulse ring when active */}
+                <circle cx={px} cy={py} r="10" fill="transparent" />
                 {isHovered && (
-                  <circle
-                    cx={dot.x}
-                    cy={dot.y}
-                    r="7"
-                    fill="none"
-                    stroke={dot.color}
-                    strokeWidth="2"
-                    opacity="0.4"
-                  />
+                  <circle cx={px} cy={py} r="7" fill="none" stroke={d.color} strokeWidth="2" opacity="0.4" />
                 )}
-                {/* Visible dot */}
-                <circle
-                  cx={dot.x}
-                  cy={dot.y}
-                  r={isHovered ? 4.5 : 3.5}
-                  fill={dot.color}
-                  stroke="#ffffff"
-                  strokeWidth="1.5"
-                />
+                <circle cx={px} cy={py} r={isHovered ? 4.5 : 3.5} fill={d.color} stroke="#ffffff" strokeWidth="1.5" />
               </g>
             );
           })}
@@ -509,68 +357,35 @@ function PowerConsumptionChart() {
           {/* ── Tooltip pointer line ── */}
           {currentTooltip && (
             <line
-              x1={currentTooltip.x}
-              y1={currentTooltip.y - 4}
-              x2={currentTooltip.x}
-              y2={Math.min(currentTooltip.y - 12, 142)}
+              x1={getX(data.indexOf(currentTooltip))}
+              y1={getY(currentTooltip.power) - 4}
+              x2={getX(data.indexOf(currentTooltip))}
+              y2={Math.min(getY(currentTooltip.power) - 12, 142)}
               stroke="#1e293b"
               strokeWidth="1.2"
             />
           )}
 
-          {/* ── Tooltip Box (styled exactly like image) ── */}
+          {/* ── Tooltip Box ── */}
           {currentTooltip && (
             <g
               transform={`translate(${Math.max(
                 padLeft + 10,
-                Math.min(currentTooltip.x - 55, width - padRight - 110)
-              )}, ${Math.max(28, currentTooltip.y - 75)})`}
+                Math.min(getX(data.indexOf(currentTooltip)) - 55, width - padRight - 110)
+              )}, ${Math.max(28, getY(currentTooltip.power) - 75)})`}
               className="pointer-events-none drop-shadow-md"
             >
-              <rect
-                width="106"
-                height="62"
-                rx="6"
-                ry="6"
-                fill="#1e293b"
-                stroke="#334155"
-                strokeWidth="1"
-              />
-              <text
-                x="8"
-                y="16"
-                fontSize="11"
-                fontWeight="700"
-                fill="#ffffff"
-                fontFamily="sans-serif"
-              >
-                {currentTooltip.time}
+              <rect width="106" height="62" rx="6" ry="6" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              <text x="8" y="16" fontSize="11" fontWeight="700" fill="#ffffff" fontFamily="sans-serif">
+                {currentTooltip.timeLabel}
               </text>
-              <text
-                x="8"
-                y="30"
-                fontSize="9.5"
-                fill="#e2e8f0"
-                fontFamily="sans-serif"
-              >
+              <text x="8" y="30" fontSize="9.5" fill="#e2e8f0" fontFamily="sans-serif">
                 Mode: {currentTooltip.mode}
               </text>
-              <text
-                x="8"
-                y="43"
-                fontSize="9.5"
-                fill="#e2e8f0"
-                fontFamily="sans-serif"
-              >
-                Power: {currentTooltip.power}
+              <text x="8" y="43" fontSize="9.5" fill="#e2e8f0" fontFamily="sans-serif">
+                Power: {currentTooltip.power} mW
               </text>
-              <text
-                x="8"
-                y="55"
-                fontSize="9.5"
-                fill="#e2e8f0"
-                fontFamily="sans-serif"
-              >
+              <text x="8" y="55" fontSize="9.5" fill="#e2e8f0" fontFamily="sans-serif">
                 Current: {currentTooltip.current}
               </text>
             </g>
@@ -578,12 +393,12 @@ function PowerConsumptionChart() {
         </svg>
       </div>
 
-      <p className="text-[11px] text-gray-500 text-center font-medium mt-0.5">Time</p>
+      <p className="text-[11px] text-gray-500 text-center font-medium mt-0.5">Real-time (30s intervals)</p>
     </div>
   );
 }
 
-function EnergyConsumptionChart() {
+function EnergyConsumptionChart({ data }) {
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
   // SVG dimensions
@@ -596,45 +411,37 @@ function EnergyConsumptionChart() {
   const plotW = width - padLeft - padRight;
   const plotH = height - padTop - padBottom;
 
-  // Y scale: 0 to 1.25 mWh
-  const getY = (val) => padTop + (1 - val / 1.25) * plotH;
-  // X scale: 0 to 80 mins (10:00 to 11:20)
-  const getX = (min) => padLeft + (min / 80) * plotW;
+  if (!data || data.length === 0) return null;
+
+  // X scale: based on data array length
+  const getX = (index) => padLeft + (index / (data.length - 1)) * plotW;
+  
+  // Dynamic Y scale max:
+  const maxEnergy = Math.max(1.25, ...data.map(d => d.energy));
+  const roundedMax = Math.ceil(maxEnergy * 4) / 4; // round to nearest 0.25
+  const getY = (val) => padTop + (1 - val / roundedMax) * plotH;
 
   const yTicks = [
-    { label: "1.25", val: 1.25 },
-    { label: "1.00", val: 1.00 },
-    { label: "0.75", val: 0.75 },
-    { label: "0.50", val: 0.50 },
-    { label: "0.25", val: 0.25 },
+    { label: roundedMax.toFixed(2), val: roundedMax },
+    { label: (roundedMax * 0.8).toFixed(2), val: roundedMax * 0.8 },
+    { label: (roundedMax * 0.6).toFixed(2), val: roundedMax * 0.6 },
+    { label: (roundedMax * 0.4).toFixed(2), val: roundedMax * 0.4 },
+    { label: (roundedMax * 0.2).toFixed(2), val: roundedMax * 0.2 },
     { label: "0.00", val: 0.00 },
   ];
 
-  const xTicks = [
-    { label: "10:00", min: 0 },
-    { label: "10:15", min: 15 },
-    { label: "10:30", min: 30 },
-    { label: "10:45", min: 45 },
-    { label: "11:00", min: 60 },
-    { label: "11:15", min: 75 },
-  ];
+  // Create xTicks every 2 points (every 1 minute)
+  const xTicks = data.filter((_, i) => i % 2 === 0).map((d, i) => ({
+    label: d.timeLabel.split(" ")[0], // grab time string
+    index: data.indexOf(d)
+  }));
 
-  const points = [
-    { min: 0, energy: 0.00, time: "10:00", x: getX(0), y: getY(0.00) },
-    { min: 13, energy: 0.15, time: "10:13", x: getX(13), y: getY(0.15) },
-    { min: 25, energy: 0.34, time: "10:25", x: getX(25), y: getY(0.34) },
-    { min: 38, energy: 0.53, time: "10:38", x: getX(38), y: getY(0.53) },
-    { min: 50, energy: 0.72, time: "10:50", x: getX(50), y: getY(0.72) },
-    { min: 62, energy: 0.91, time: "11:02", x: getX(62), y: getY(0.91) },
-    { min: 78, energy: 1.134, time: "11:18", x: getX(78), y: getY(1.134) },
-  ];
-
-  const pathD = points.reduce(
-    (acc, pt, i) => (i === 0 ? `M ${pt.x},${pt.y}` : `${acc} L ${pt.x},${pt.y}`),
+  const pathD = data.reduce(
+    (acc, pt, i) => (i === 0 ? `M ${getX(i)},${getY(pt.energy)}` : `${acc} L ${getX(i)},${getY(pt.energy)}`),
     ""
   );
 
-  const areaD = `${pathD} L ${points[points.length - 1].x},${getY(0)} L ${points[0].x},${getY(0)} Z`;
+  const areaD = `${pathD} L ${getX(data.length - 1)},${getY(0)} L ${getX(0)},${getY(0)} Z`;
 
   return (
     <div className="w-full">
@@ -652,13 +459,7 @@ function EnergyConsumptionChart() {
           </defs>
 
           {/* Top Y-Axis Unit Label */}
-          <text
-            x={padLeft - 22}
-            y={padTop - 12}
-            fontSize="11"
-            fill="#374151"
-            fontWeight="500"
-          >
+          <text x={padLeft - 22} y={padTop - 12} fontSize="11" fill="#374151" fontWeight="500">
             Energy (mWh)
           </text>
 
@@ -668,32 +469,10 @@ function EnergyConsumptionChart() {
             return (
               <g key={label}>
                 {val > 0 && (
-                  <line
-                    x1={padLeft}
-                    y1={y}
-                    x2={width - padRight}
-                    y2={y}
-                    stroke="#f3f4f6"
-                    strokeWidth="1"
-                  />
+                  <line x1={padLeft} y1={y} x2={width - padRight} y2={y} stroke="#f3f4f6" strokeWidth="1" />
                 )}
-                {/* Y Tick mark */}
-                <line
-                  x1={padLeft - 4}
-                  y1={y}
-                  x2={padLeft}
-                  y2={y}
-                  stroke="#d1d5db"
-                  strokeWidth="1"
-                />
-                {/* Y Tick Label */}
-                <text
-                  x={padLeft - 8}
-                  y={y + 3.5}
-                  fontSize="10.5"
-                  fill="#4b5563"
-                  textAnchor="end"
-                >
+                <line x1={padLeft - 4} y1={y} x2={padLeft} y2={y} stroke="#d1d5db" strokeWidth="1" />
+                <text x={padLeft - 8} y={y + 3.5} fontSize="10.5" fill="#4b5563" textAnchor="end">
                   {label}
                 </text>
               </g>
@@ -702,34 +481,12 @@ function EnergyConsumptionChart() {
 
           {/* Vertical Grid lines & X Ticks */}
           {xTicks.map((t) => {
-            const x = getX(t.min);
+            const x = getX(t.index);
             return (
-              <g key={t.label}>
-                <line
-                  x1={x}
-                  y1={padTop}
-                  x2={x}
-                  y2={padTop + plotH}
-                  stroke="#f3f4f6"
-                  strokeWidth="1"
-                />
-                {/* X Tick mark */}
-                <line
-                  x1={x}
-                  y1={padTop + plotH}
-                  x2={x}
-                  y2={padTop + plotH + 4}
-                  stroke="#d1d5db"
-                  strokeWidth="1"
-                />
-                {/* X Tick label */}
-                <text
-                  x={x}
-                  y={padTop + plotH + 16}
-                  fontSize="10.5"
-                  fill="#4b5563"
-                  textAnchor="middle"
-                >
+              <g key={t.index}>
+                <line x1={x} y1={padTop} x2={x} y2={padTop + plotH} stroke="#f3f4f6" strokeWidth="1" />
+                <line x1={x} y1={padTop + plotH} x2={x} y2={padTop + plotH + 4} stroke="#d1d5db" strokeWidth="1" />
+                <text x={x} y={padTop + plotH + 16} fontSize="10.5" fill="#4b5563" textAnchor="middle">
                   {t.label}
                 </text>
               </g>
@@ -737,39 +494,20 @@ function EnergyConsumptionChart() {
           })}
 
           {/* X and Y Axis Lines */}
-          <line
-            x1={padLeft}
-            y1={padTop}
-            x2={padLeft}
-            y2={padTop + plotH}
-            stroke="#d1d5db"
-            strokeWidth="1"
-          />
-          <line
-            x1={padLeft}
-            y1={padTop + plotH}
-            x2={width - padRight}
-            y2={padTop + plotH}
-            stroke="#d1d5db"
-            strokeWidth="1"
-          />
+          <line x1={padLeft} y1={padTop} x2={padLeft} y2={padTop + plotH} stroke="#d1d5db" strokeWidth="1" />
+          <line x1={padLeft} y1={padTop + plotH} x2={width - padRight} y2={padTop + plotH} stroke="#d1d5db" strokeWidth="1" />
 
           {/* Gradient Area Fill */}
           <path d={areaD} fill="url(#energyFillGradient)" />
 
           {/* Solid Green Line */}
-          <path
-            d={pathD}
-            fill="none"
-            stroke="#16a34a"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d={pathD} fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
 
           {/* Data Points */}
-          {points.map((pt, idx) => {
-            const isHovered = hoveredPoint && hoveredPoint.min === pt.min;
+          {data.map((pt, idx) => {
+            const px = getX(idx);
+            const py = getY(pt.energy);
+            const isHovered = hoveredPoint === pt;
             return (
               <g
                 key={idx}
@@ -777,93 +515,56 @@ function EnergyConsumptionChart() {
                 onMouseEnter={() => setHoveredPoint(pt)}
                 onMouseLeave={() => setHoveredPoint(null)}
               >
-                <circle cx={pt.x} cy={pt.y} r="10" fill="transparent" />
+                <circle cx={px} cy={py} r="10" fill="transparent" />
                 {isHovered && (
-                  <circle
-                    cx={pt.x}
-                    cy={pt.y}
-                    r="7"
-                    fill="none"
-                    stroke="#16a34a"
-                    strokeWidth="2"
-                    opacity="0.4"
-                  />
+                  <circle cx={px} cy={py} r="7" fill="none" stroke="#16a34a" strokeWidth="2" opacity="0.4" />
                 )}
-                <circle
-                  cx={pt.x}
-                  cy={pt.y}
-                  r={isHovered ? 4.5 : 3.5}
-                  fill="#16a34a"
-                  stroke="#ffffff"
-                  strokeWidth="1.5"
-                />
+                <circle cx={px} cy={py} r={isHovered ? 4.5 : 3.5} fill="#16a34a" stroke="#ffffff" strokeWidth="1.5" />
               </g>
             );
           })}
 
-          {/* 1.134 mWh Pill Badge (pinned above the end dot as in screenshot) */}
-          <g className="pointer-events-none">
-            {/* Pill Container */}
-            <rect
-              x={points[points.length - 1].x - 68}
-              y={points[points.length - 1].y - 36}
-              width="74"
-              height="24"
-              rx="6"
-              ry="6"
-              fill="#059669"
-            />
-            {/* Downward pointer caret */}
-            <polygon
-              points={`${points[points.length - 1].x - 12},${points[points.length - 1].y - 12} ${points[points.length - 1].x - 4},${points[points.length - 1].y - 12} ${points[points.length - 1].x - 8},${points[points.length - 1].y - 6}`}
-              fill="#059669"
-            />
-            {/* Badge Text */}
-            <text
-              x={points[points.length - 1].x - 31}
-              y={points[points.length - 1].y - 20}
-              fontSize="11"
-              fontWeight="700"
-              fill="#ffffff"
-              textAnchor="middle"
-              fontFamily="sans-serif"
-            >
-              1.134 mWh
-            </text>
-          </g>
-
-          {/* Hover Tooltip (if hovering other points) */}
-          {hoveredPoint && hoveredPoint.min !== 78 && (
-            <g
-              transform={`translate(${hoveredPoint.x - 42}, ${hoveredPoint.y - 48})`}
-              className="pointer-events-none drop-shadow-md"
-            >
+          {/* Latest value Pill Badge (pinned above the last dot) */}
+          {data.length > 0 && (
+            <g className="pointer-events-none">
               <rect
-                width="84"
-                height="38"
-                rx="5"
-                ry="5"
-                fill="#1e293b"
-                stroke="#334155"
-                strokeWidth="1"
+                x={getX(data.length - 1) - 68}
+                y={getY(data[data.length - 1].energy) - 36}
+                width="74"
+                height="24"
+                rx="6"
+                ry="6"
+                fill="#059669"
+              />
+              <polygon
+                points={`${getX(data.length - 1) - 12},${getY(data[data.length - 1].energy) - 12} ${getX(data.length - 1) - 4},${getY(data[data.length - 1].energy) - 12} ${getX(data.length - 1) - 8},${getY(data[data.length - 1].energy) - 6}`}
+                fill="#059669"
               />
               <text
-                x="42"
-                y="16"
-                fontSize="10"
+                x={getX(data.length - 1) - 31}
+                y={getY(data[data.length - 1].energy) - 20}
+                fontSize="11"
                 fontWeight="700"
                 fill="#ffffff"
                 textAnchor="middle"
+                fontFamily="sans-serif"
               >
-                {hoveredPoint.time}
+                {data[data.length - 1].energy.toFixed(3)} mWh
               </text>
-              <text
-                x="42"
-                y="30"
-                fontSize="9.5"
-                fill="#86efac"
-                textAnchor="middle"
-              >
+            </g>
+          )}
+
+          {/* Hover Tooltip */}
+          {hoveredPoint && hoveredPoint !== data[data.length - 1] && (
+            <g
+              transform={`translate(${getX(data.indexOf(hoveredPoint)) - 42}, ${getY(hoveredPoint.energy) - 48})`}
+              className="pointer-events-none drop-shadow-md"
+            >
+              <rect width="84" height="38" rx="5" ry="5" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              <text x="42" y="16" fontSize="10" fontWeight="700" fill="#ffffff" textAnchor="middle">
+                {hoveredPoint.timeLabel}
+              </text>
+              <text x="42" y="30" fontSize="9.5" fill="#86efac" textAnchor="middle">
                 {hoveredPoint.energy.toFixed(3)} mWh
               </text>
             </g>
@@ -871,24 +572,26 @@ function EnergyConsumptionChart() {
         </svg>
       </div>
 
-      <p className="text-[11px] text-gray-500 text-center font-medium mt-0.5">Time</p>
+      <p className="text-[11px] text-gray-500 text-center font-medium mt-0.5">Real-time (30s intervals)</p>
     </div>
   );
 }
 
 function PowerMonitoringRow() {
+  const realtimeData = useRealtimePowerData();
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Power Consumption History */}
       <Card className="p-6">
         <h2 className="text-base font-bold text-gray-800 mb-2">Power Consumption History</h2>
-        <PowerConsumptionChart />
+        <PowerConsumptionChart data={realtimeData} />
       </Card>
 
       {/* Energy Consumption Over Time */}
       <Card className="p-6">
         <h2 className="text-base font-bold text-gray-800 mb-2">Energy Consumption Over Time</h2>
-        <EnergyConsumptionChart />
+        <EnergyConsumptionChart data={realtimeData} />
       </Card>
     </div>
   );
