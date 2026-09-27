@@ -19,8 +19,15 @@ function fmt(val, d = 2) {
 export default function Power() {
   const { data: liveData, connected } = useFirebaseLive();
   
-  // Maps RTDB deviceStatus to local powerMode
-  const currentMode = liveData.deviceStatus === "DEEP_SLEEP" ? "SLEEP" : "ACTIVE";
+  // Maps RTDB deviceStatus to local powerMode (checks DEEP_SLEEP, SLEEP, isActive, isDeepSleep)
+  const rawStatus = liveData?.deviceStatus ? String(liveData.deviceStatus).toUpperCase() : "";
+  const isDeepSleep = 
+    rawStatus === "DEEP_SLEEP" || 
+    rawStatus === "SLEEP" || 
+    liveData?.isDeepSleep === true || 
+    (liveData?.isActive === false && rawStatus !== "ACTIVE");
+
+  const currentMode = isDeepSleep ? "SLEEP" : "ACTIVE";
   const loading = !connected;
 
   // We use fallback defaults for now as INA226 hardware isn't sending live power metrics yet
@@ -267,7 +274,7 @@ export default function Power() {
       </div>
       
       {/* Interactive Savings Calculator (Stopwatch / Timer) */}
-      <SavingsCalculator activePower={act.power} sleepPower={slp.power} />
+      <SavingsCalculator activePower={act.power} sleepPower={slp.power} currentMode={displayMode} connected={connected} />
     </div>
   );
 }
